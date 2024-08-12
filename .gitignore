@@ -1,0 +1,19 @@
+# fly file used for setting launch configurations 
+fly.toml
+
+# env file
+.env
+
+# virtual env
+venv/
+
+# anything related to jupyter notebook
+*.ipynb
+.ipynb_checkpoints/
+
+# only used for promptfoo
+configs/
+
+# cache and other miscellaneous files
+__pycache__
+**/.DS_Store
