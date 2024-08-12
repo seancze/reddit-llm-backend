@@ -18,3 +18,24 @@ gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker -
 ```
 - See [here](https://www.uvicorn.org/#running-with-gunicorn) for more information
 
+## Testing
+
+To get started, set your `OPENAI_API_KEY` environment variable, or other required keys for the providers you selected.
+
+### Run evaluation
+```shell
+npx promptfoo@latest eval -c test/promptfooconfig.yaml --no-cache
+```
+
+**View logs**
+```shell
+npx promptfoo@latest eval -c test/promptfooconfig.yaml --no-cache --verbose
+```
+
+### View evaluation UI
+```shell
+npx promptfoo@latest view
+```
+
+Click [here](https://www.promptfoo.dev/docs/getting-started/) for more information.
+
