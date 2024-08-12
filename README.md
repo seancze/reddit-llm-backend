@@ -1,7 +1,8 @@
 # reddit-llm-backend
 
 ## Installation
-1. Install necessary dependencies by running `pip install -r requirements.txt`
+1. Ensure that [Git LFS](https://git-lfs.com/) is installed locally
+2. Install necessary dependencies by running `pip install -r requirements.txt`
 
 ## Usage
 
