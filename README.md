@@ -18,6 +18,18 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --workers 4
 gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 - See [here](https://www.uvicorn.org/#running-with-gunicorn) for more information
+  
+### Running on docker
+**Build image**
+```shell
+docker build -t reddit-llm-backend .
+```
+
+**Run image**
+```shell
+docker run -p 8000:8000 --env-file .env reddit-llm-backend
+```
+
 
 ## Testing
 
