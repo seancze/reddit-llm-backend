@@ -28,5 +28,6 @@ def mongodb_connection():
     except Exception as e:
         print(traceback.format_exc())
         print(f"IMPORTANT: Please ensure that your VPN is disabled")
+        raise e
     finally:
         connection.close()
