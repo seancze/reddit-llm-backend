@@ -1,25 +1,24 @@
 import openai
 import json
 import app.constants as constants
-from app.db.conn import mongodb_connection
+from app.db.conn import MongoDBConnection
 
 
-def query_mongodb(collection_name, pipeline):
-    print(f"pipeline: {pipeline}")
-    with mongodb_connection() as conn:
-        collection = conn.db[collection_name]
+def query_mongodb(collection_name: str, pipeline: list, db_conn: MongoDBConnection):
 
-        if collection_name == "thread":
-            # Add a $project stage to exclude selftext_embedding at the beginning of the pipeline
-            pipeline.insert(0, {"$project": {"selftext_embedding": 0, "_id": 0}})
+    collection = db_conn.get_collection(collection_name)
 
-        # Execute the aggregation pipeline
-        documents = list(collection.aggregate(pipeline))
+    if collection_name == "thread":
+        # Add a $project stage to exclude selftext_embedding at the beginning of the pipeline
+        pipeline.insert(0, {"$project": {"selftext_embedding": 0, "_id": 0}})
 
-        return documents
+    # Execute the aggregation pipeline
+    documents = list(collection.aggregate(pipeline))
+
+    return documents
 
 
-def get_mongodb_query(user_query):
+def get_mongo_pipeline(user_query):
 
     response = openai.chat.completions.create(
         model="gpt-4o",
