@@ -1,7 +1,11 @@
 import openai
 import json
+import os
 import app.constants as constants
 from app.db.conn import MongoDBConnection
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def query_mongodb(collection_name: str, pipeline: list, db_conn: MongoDBConnection):
@@ -21,7 +25,7 @@ def query_mongodb(collection_name: str, pipeline: list, db_conn: MongoDBConnecti
 def get_mongo_pipeline(user_query):
 
     response = openai.chat.completions.create(
-        model="gpt-4o",
+        model=os.environ.get("OPENAI_MODEL"),
         messages=[
             {"role": "system", "content": constants.SYSTEM_PROMPT_GET_MONGODB_QUERY},
             {

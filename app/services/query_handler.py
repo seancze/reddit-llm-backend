@@ -1,13 +1,17 @@
 import openai
 import time
+import os
+from dotenv import load_dotenv
 from app import constants
 from app.utils.vector_search import vector_search
 from app.utils.mongodb_query import get_mongo_pipeline, query_mongodb
 from app.utils.format_utils import normalise_query
 from pymongo.errors import OperationFailure
 from app.db.upsert import upsert_query_document
-from app.db.get import get_cached_response
 from app.db.conn import MongoDBConnection
+from app.db.get import get_cached_response
+
+load_dotenv()
 
 
 def handle_user_query(query: str, db_conn: MongoDBConnection):
@@ -88,7 +92,7 @@ def handle_user_query(query: str, db_conn: MongoDBConnection):
             prompt += f"""\n{search_result}"""
 
         completion = openai.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.environ.get("OPENAI_MODEL"),
             messages=[
                 {"role": "system", "content": constants.SYSTEM_PROMPT},
                 {
@@ -98,10 +102,10 @@ def handle_user_query(query: str, db_conn: MongoDBConnection):
             ],
         )
 
-        cached_doc = completion.choices[0].message.content
-        query_doc["response"] = cached_doc
+        response = completion.choices[0].message.content
+        query_doc["response"] = response
 
-        return cached_doc
+        return response
     except Exception as e:
         is_error = True
         query_doc["error"] = str(e)
