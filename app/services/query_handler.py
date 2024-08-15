@@ -1,17 +1,11 @@
-import openai
 import time
-import os
-from dotenv import load_dotenv
-from app import constants
 from app.utils.vector_search import vector_search
-from app.utils.mongodb_query import get_mongo_pipeline, query_mongodb
-from app.utils.format_utils import normalise_query
+from app.utils.openai_utils import get_mongo_pipeline, get_llm_response
+from app.utils.format_utils import normalise_query, format_vector_search_result
 from pymongo.errors import OperationFailure
 from app.db.upsert import upsert_query_document
 from app.db.conn import MongoDBConnection
-from app.db.get import get_cached_response
-
-load_dotenv()
+from app.db.get import get_cached_response, get_response_from_pipeline
 
 
 def handle_user_query(query: str, db_conn: MongoDBConnection):
@@ -41,7 +35,7 @@ def handle_user_query(query: str, db_conn: MongoDBConnection):
     Data from database:"""
 
         if mongo_pipeline_obj["pipeline"]:
-            mongodb_data = query_mongodb(
+            mongodb_data = get_response_from_pipeline(
                 mongo_pipeline_obj["collection_name"],
                 mongo_pipeline_obj["pipeline"],
                 db_conn,
@@ -51,9 +45,9 @@ def handle_user_query(query: str, db_conn: MongoDBConnection):
                 use_vector_search = True
             else:
                 prompt += f"""\n{mongodb_data}\nDatabase query: {mongo_pipeline_obj["pipeline"]}"""
+
         if use_vector_search:
             thread_collection = db_conn.get_collection("thread")
-            comment_collection = db_conn.get_collection("comment")
 
             vector_search_result = vector_search(query, thread_collection)
             # only store the 'id' and 'vector_search_score' field into query_doc
@@ -61,48 +55,11 @@ def handle_user_query(query: str, db_conn: MongoDBConnection):
                 {"id": result["id"], "score": result["vector_search_score"]}
                 for result in vector_search_result
             ]
-
-            search_result = ""
-
-            for i, result in enumerate(vector_search_result):
-                thread_id = result.get("id")
-                # for each thread_id, get the top 5 comments from the 'comment' collection based on the score and add them to the search result
-                comments = (
-                    comment_collection.find(
-                        {
-                            "parent_id": f"t3_{thread_id}"  # we use parent_id to ensure that we only get top-level comments
-                        },
-                        {"_id": 0, "score": 1, "body": 1},
-                    )
-                    .sort([("score", -1)])
-                    .limit(3)
-                )
-
-                # ensure that the comments are formatted like this: "Comment (Score: {score}): {body} \n"
-                comments_str = " \n".join(
-                    [
-                        f"Comment (Score: {comment.get('score', 'N/A')}): {comment.get('body', 'N/A')}"
-                        for comment in comments
-                    ]
-                )
-
-                search_result += f"""Thread {i+1} (Score: {result.get('score', 'N/A')})\nTitle: {result.get('title', 'N/A')}\nURL: https://reddit.com{result.get('permalink', 'N/A')}\nBody: {result.get('selftext', "N/A")}\n{comments_str}\n\n\n"""
-                # print(f"search_result: {search_result}")
+            search_result = format_vector_search_result(vector_search_result, db_conn)
 
             prompt += f"""\n{search_result}"""
 
-        completion = openai.chat.completions.create(
-            model=os.environ.get("OPENAI_MODEL"),
-            messages=[
-                {"role": "system", "content": constants.SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
-        )
-
-        response = completion.choices[0].message.content
+        response = get_llm_response(prompt)
         query_doc["response"] = response
 
         return response
