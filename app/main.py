@@ -10,7 +10,7 @@ app = FastAPI(lifespan=lifespan)
 # Configure CORS
 origins = [
     "http://localhost",
-    "https://reddit-llm-frontend.vercel.app",
+    "https://reddit-llm.vercel.app",
 ]
 
 app.add_middleware(
