@@ -3,7 +3,7 @@ FROM python:3.12.4-slim
 WORKDIR /
 
 # copy the directory contents at /app into the container at /app
-COPY /app /app
+COPY . /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
