@@ -1,3 +1,6 @@
+# 1 day
+CACHE_DURATION = 60 * 60 * 24
+
 SYSTEM_PROMPT = """You are an AI assistant specialising in Singapore youth trends, data analytics, and policy insights. Your expertise covers:
 1. Data analysis for youth behaviors and trends
 2. Singapore's education, job market, and youth opportunities
