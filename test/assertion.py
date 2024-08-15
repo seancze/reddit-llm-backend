@@ -3,12 +3,10 @@ from typing import Dict, Union, Any
 
 def get_assert(output, context) -> Union[bool, float, Dict[str, Any]]:
 
-    is_pipeline_generated = context["vars"]["is_pipeline_generated"]
+    is_pipeline_generated = context["vars"]["is_pipeline_generated"].upper() == "TRUE"
     pipeline = output["pipeline"]
     # ensure that the pipeline is only generated when we expect it to
-    if (pipeline is None and is_pipeline_generated) or (
-        pipeline is not None and not is_pipeline_generated
-    ):
+    if (pipeline is not None) != is_pipeline_generated:
         return {
             "pass": False,
             "score": 0,
