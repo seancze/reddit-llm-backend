@@ -22,13 +22,20 @@ gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker -
 ### Running on docker
 **Build image**
 ```shell
-docker build -t reddit-llm-backend .
+docker build -t reddit-llm-backend app
 ```
 
 **Run image**
 ```shell
 docker run -p 8000:8000 --env-file .env reddit-llm-backend
 ```
+
+### Deploy to Heroku
+```shell
+git subtree push --prefix app heroku main 
+```
+- We can only deploy a subtree because Git LFS is not supported by Heroku
+
 
 
 ## Testing
