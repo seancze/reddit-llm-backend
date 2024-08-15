@@ -1,8 +1,9 @@
 import uvicorn
 from fastapi import FastAPI
+from app.db.conn import lifespan
 from app.api.routes import router
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 app.include_router(router)
 
 if __name__ == "__main__":

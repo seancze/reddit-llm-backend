@@ -1,33 +1,69 @@
 import os
-import traceback
 from pymongo import MongoClient
-from contextlib import contextmanager
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
 load_dotenv()
 
 
 class MongoDBConnection:
-    def __init__(self):
-        uri = os.environ.get("MONGODB_URI")
-        self.client = MongoClient(uri)
-        self.db = self.client["reddit_db"]
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(MongoDBConnection, cls).__new__(cls)
+            uri = os.environ.get("MONGODB_URI")
+            cls._instance.client = MongoClient(uri, maxPoolSize=10, minPoolSize=5)
+            cls._instance.db = cls._instance.client["reddit_db"]
+            print(f"MongoDB connection created.")
+        return cls._instance
 
     def get_collection(self, collection_name):
         return self.db[collection_name]
 
+    def get_active_connections(self):
+        try:
+            server_status = self.db.command("serverStatus")
+            connections = server_status["connections"]
+            return {
+                "current": connections["current"],
+                "available": connections["available"],
+                "total_created": connections["totalCreated"],
+            }
+        except Exception as e:
+            print(f"Error getting connection info: {e}")
+            return None
+
+    def print_connection_info(self):
+        conn_info = self.get_active_connections()
+        if conn_info:
+            print(f"Current active connections: {conn_info['current']}")
+            print(f"Available connections: {conn_info['available']}")
+            print(f"Total connections created: {conn_info['total_created']}")
+        else:
+            print("Unable to retrieve connection information.")
+
     def close(self):
-        self.client.close()
+        if self.client:
+            self.client.close()
+            print("MongoDB connection closed.")
 
 
-@contextmanager
-def mongodb_connection():
-    connection = MongoDBConnection()
-    try:
-        yield connection
-    except Exception as e:
-        print(traceback.format_exc())
-        print(f"IMPORTANT: Please ensure that your VPN is disabled")
-        raise e
-    finally:
-        connection.close()
+db_conn = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # create a database client when the app starts
+    global db_conn
+    db_conn = MongoDBConnection()
+    db_conn.print_connection_info()
+    yield
+    # close the database client when the app stops
+    db_conn.close()
+
+
+# used to ensure that we are able to get the (same) database instance after the app has started
+def get_db_client():
+    return db_conn
