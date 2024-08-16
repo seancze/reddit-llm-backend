@@ -1,5 +1,6 @@
 import os
 from pymongo import MongoClient
+from pymongo.collection import Collection
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
@@ -19,7 +20,7 @@ class MongoDBConnection:
             print(f"MongoDB connection created.")
         return cls._instance
 
-    def get_collection(self, collection_name):
+    def get_collection(self, collection_name) -> Collection:
         return self.db[collection_name]
 
     def get_active_connections(self):
