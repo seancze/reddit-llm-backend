@@ -1,4 +1,5 @@
 import time
+from bson import ObjectId
 from app.utils.vector_search import vector_search
 from app.utils.openai_utils import get_mongo_pipeline, get_llm_response
 from app.utils.format_utils import normalise_query, format_vector_search_result
@@ -6,22 +7,31 @@ from pymongo.errors import OperationFailure
 from app.db.upsert import upsert_query_document
 from app.db.conn import MongoDBConnection
 from app.db.get import get_cached_response, get_response_from_pipeline
+from app.schemas.query_response import QueryResponse
 
 
 def handle_user_query(query: str, db_conn: MongoDBConnection):
     query = normalise_query(query)
-    query_doc = {"updated_utc": int(time.time()), "query": query, "query_count": 1}
+    query_doc = {
+        "_id": ObjectId(),
+        "updated_utc": int(time.time()),
+        "query": query,
+        "query_count": 1,
+    }
     is_error = False
     try:
         # check if the query has been made recently
         cached_doc = get_cached_response(query, db_conn)
         if cached_doc:
             query_doc["used_cache"] = True
+            # amongst other fields, this updates "_id" to the id of the cached_doc
             query_doc.update(cached_doc)
             is_error = cached_doc.get("is_error", False)
             if is_error:
                 raise Exception("Cached document returned an error previously")
-            return cached_doc["response"]
+            return QueryResponse(
+                response=cached_doc["response"], query_id=cached_doc["_id"]
+            )
 
         mongo_pipeline_obj = get_mongo_pipeline(query)
         query_doc.update(mongo_pipeline_obj)
@@ -62,7 +72,7 @@ def handle_user_query(query: str, db_conn: MongoDBConnection):
         response = get_llm_response(prompt)
         query_doc["response"] = response
 
-        return response
+        return QueryResponse(response=response, query_id=query_doc["_id"])
     except Exception as e:
         is_error = True
         query_doc["error"] = str(e)
