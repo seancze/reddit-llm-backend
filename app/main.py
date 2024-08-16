@@ -9,7 +9,7 @@ app = FastAPI(lifespan=lifespan)
 
 # Configure CORS
 origins = [
-    "http://localhost",
+    "http://localhost:3000",
     "https://reddit-llm.vercel.app",
 ]
 
