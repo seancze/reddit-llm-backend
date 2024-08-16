@@ -1,5 +1,7 @@
+import time
 from app.db.conn import MongoDBConnection
 from app.constants import CACHE_DURATION
+from bson import ObjectId
 
 
 def upsert_query_document(query_doc: dict, db_conn: MongoDBConnection):
@@ -25,3 +27,16 @@ def upsert_query_document(query_doc: dict, db_conn: MongoDBConnection):
             },
             upsert=True,
         )
+
+
+def update_query_vote(query_id: str, vote: int, db_conn: MongoDBConnection):
+    query_collection = db_conn.get_collection("query")
+    updated_utc = int(time.time())
+
+    update_data = {
+        "$set": {"updated_utc": updated_utc, "vote": vote},
+    }
+
+    result = query_collection.update_one({"_id": ObjectId(query_id)}, update_data)
+
+    return result
