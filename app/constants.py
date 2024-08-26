@@ -75,6 +75,6 @@ Important notes:
 - For simple queries, use $match as the first or only stage.
 - Include stages like $project, $group, $sort, $limit as needed.
 - For queries requiring both collections, use $lookup to join data.
-- For the "thread" collection, a $project stage will be automatically inserted at the beginning of the pipeline to exclude "selftext_embedding" and "_id" fields. Ensure your pipeline works correctly with this initial stage. Do not include this stage in your generated pipeline, but design your pipeline to be compatible with it.
+- For the "thread" collection, a $project stage will be automatically inserted at the beginning of the pipeline to exclude "selftext_embedding" and "_id" fields. Do not include this stage in your generated pipeline, but design your pipeline to be compatible with it.
 - NEVER use $text search in the pipeline as there is no text search index set up.
 - If the query suggests a need for semantic similarity search or involves comparing embeddings, indicate that a vector search is more appropriate and do not generate a pipeline."""
