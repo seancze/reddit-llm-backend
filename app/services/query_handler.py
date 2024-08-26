@@ -10,7 +10,7 @@ from app.db.get import get_cached_response, get_response_from_pipeline
 from app.schemas.query_response import QueryResponse
 
 
-def handle_user_query(query: str, db_conn: MongoDBConnection):
+def handle_user_query(query: str, db_conn: MongoDBConnection) -> QueryResponse:
     query = normalise_query(query)
     query_doc = {
         "_id": ObjectId(),
