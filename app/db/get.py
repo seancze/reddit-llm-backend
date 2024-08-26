@@ -33,6 +33,19 @@ def get_response_from_pipeline(
         # add a $project stage to exclude selftext_embedding at the beginning of the pipeline
         pipeline.insert(0, {"$project": {"selftext_embedding": 0, "_id": 0}})
 
+    # check if $limit stage exists in the pipeline
+    limit_index = next(
+        (i for i, stage in enumerate(pipeline) if "$limit" in stage), None
+    )
+
+    if limit_index is not None:
+        # if $limit exists, update it to be at most 5
+        original_limit = pipeline[limit_index]["$limit"]
+        pipeline[limit_index]["$limit"] = min(5, original_limit)
+    else:
+        # if $limit doesn't exist, add it to the end of the pipeline
+        pipeline.append({"$limit": 5})
+
     # execute the aggregation pipeline
     documents = list(collection.aggregate(pipeline))
     if documents and "created_utc" in documents[0]:
