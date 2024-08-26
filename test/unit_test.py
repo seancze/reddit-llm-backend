@@ -25,7 +25,7 @@ def call_api(prompt, options, context):
         response = handle_user_query(user_query, db_conn)
         pipeline_obj = get_mongo_pipeline(user_query)
         pipeline = pipeline_obj["pipeline"]
-        result = {"output": {"response": response, "pipeline": pipeline}}
+        result = {"output": {"response": response.response, "pipeline": pipeline}}
 
         return result
     except Exception as e:
