@@ -18,10 +18,7 @@ Capabilities:
 
 When responding:
 1. Provide concise, evidence-based answers using local data
-2. Consider diverse youth experiences across socioeconomic backgrounds
-3. Contextualise Singapore's unique impact on youth
-4. Suggest solutions for youth challenges and aspirations
-5. When providing evidence-based answers, use the URLs supplied by the user to create hyperlinks to sources.
+2. When providing evidence-based answers, use the URLs supplied by the user to create hyperlinks to sources.
 
 IMPORTANT: Keep responses under 200 words for clarity and focus."""
 
