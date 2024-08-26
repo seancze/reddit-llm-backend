@@ -1,6 +1,7 @@
 import time
 from app.db.conn import MongoDBConnection
 from app.constants import CACHE_DURATION
+from app.utils.format_utils import get_human_readable_datetime
 
 
 def get_cached_response(query: str, db_conn: MongoDBConnection):
@@ -26,14 +27,17 @@ def get_cached_response(query: str, db_conn: MongoDBConnection):
 def get_response_from_pipeline(
     collection_name: str, pipeline: list, db_conn: MongoDBConnection
 ):
-
     collection = db_conn.get_collection(collection_name)
 
     if collection_name == "thread":
-        # Add a $project stage to exclude selftext_embedding at the beginning of the pipeline
+        # add a $project stage to exclude selftext_embedding at the beginning of the pipeline
         pipeline.insert(0, {"$project": {"selftext_embedding": 0, "_id": 0}})
 
-    # Execute the aggregation pipeline
+    # execute the aggregation pipeline
     documents = list(collection.aggregate(pipeline))
+    if documents and "created_utc" in documents[0]:
+        for doc in documents:
+            doc["created_date"] = get_human_readable_datetime(doc["created_utc"])
+            del doc["created_utc"]
 
     return documents
