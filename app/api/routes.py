@@ -13,6 +13,11 @@ from app.db.conn import get_db_client
 router = APIRouter()
 
 
+@router.get("/health")
+async def root():
+    return {"message": "Healthy"}
+
+
 @router.post("/query", response_model=QueryResponse)
 async def api_handle_user_query(query: QueryRequest, db_conn=Depends(get_db_client)):
     try:
