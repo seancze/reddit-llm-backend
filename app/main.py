@@ -35,8 +35,12 @@ app.add_middleware(
 # apply rate limiting to all routes
 @app.middleware("http")
 async def global_rate_limit(request: Request, call_next):
+    # skip rate limiting for OPTIONS requests
+    # apparently, browsers send an OPTIONS request before sending a POST request to check if the server allows the request
+    if request.method == "OPTIONS":
+        return await call_next(request)
     try:
-        response = await limiter.limit("1/second")(call_next)(request)
+        response = await limiter.limit("10/minute")(call_next)(request)
         return response
     except RateLimitExceeded:
         return JSONResponse(
