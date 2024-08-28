@@ -40,7 +40,7 @@ async def global_rate_limit(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
     try:
-        response = await limiter.limit("10/minute")(call_next)(request)
+        response = await limiter.limit("30/minute")(call_next)(request)
         return response
     except RateLimitExceeded:
         return JSONResponse(
