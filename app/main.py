@@ -1,13 +1,23 @@
 import uvicorn
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.db.conn import lifespan
 from app.api.routes import router
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# create a limiter instance
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(lifespan=lifespan)
 
-# Configure CORS
+# add rate limiter
+app.state.limiter = limiter
+
+
 origins = [
     "http://localhost:3000",
     "https://reddit-llm.vercel.app",
@@ -20,6 +30,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# apply rate limiting to all routes
+@app.middleware("http")
+async def global_rate_limit(request: Request, call_next):
+    try:
+        response = await limiter.limit("1/second")(call_next)(request)
+        return response
+    except RateLimitExceeded:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"error": "Rate limit exceeded."},
+        )
+
 
 app.include_router(router)
 
