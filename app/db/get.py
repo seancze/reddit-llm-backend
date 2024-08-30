@@ -4,7 +4,7 @@ from app.constants import CACHE_DURATION
 from app.utils.format_utils import get_human_readable_datetime
 
 
-def get_cached_response(query: str, db_conn: MongoDBConnection):
+def get_cached_response(db_conn: MongoDBConnection, query: str):
     query_collection = db_conn.get_collection("query")
 
     prev_time = int(time.time()) - CACHE_DURATION
@@ -25,7 +25,7 @@ def get_cached_response(query: str, db_conn: MongoDBConnection):
 
 
 def get_response_from_pipeline(
-    collection_name: str, pipeline: list, db_conn: MongoDBConnection
+    db_conn: MongoDBConnection, collection_name: str, pipeline: list
 ):
     collection = db_conn.get_collection(collection_name)
 

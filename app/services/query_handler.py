@@ -11,7 +11,7 @@ from app.schemas.query_response import QueryResponse
 
 
 def handle_user_query(
-    query: str, username: str, db_conn: MongoDBConnection
+    db_conn: MongoDBConnection, query: str, username: str
 ) -> QueryResponse:
     query = normalise_query(query)
     query_doc = {
@@ -23,7 +23,7 @@ def handle_user_query(
 
     try:
         # check if the query has been made recently
-        cached_doc = get_cached_response(query, db_conn)
+        cached_doc = get_cached_response(db_conn, query)
         if cached_doc:
             query_doc["used_cache"] = True
             # amongst other fields, this updates "_id" to the id of the cached_doc
@@ -48,9 +48,9 @@ def handle_user_query(
 
         if mongo_pipeline_obj["pipeline"]:
             mongodb_data = get_response_from_pipeline(
+                db_conn,
                 mongo_pipeline_obj["collection_name"],
                 mongo_pipeline_obj["pipeline"],
-                db_conn,
             )
             # if the data returned is empty we should use vector search
             if len(mongodb_data) == 0:
@@ -67,7 +67,7 @@ def handle_user_query(
                 {"id": result["id"], "score": result["vector_search_score"]}
                 for result in vector_search_result
             ]
-            search_result = format_vector_search_result(vector_search_result, db_conn)
+            search_result = format_vector_search_result(db_conn, vector_search_result)
 
             prompt += f"""\n{search_result}"""
 
@@ -85,4 +85,4 @@ def handle_user_query(
         raise e
     finally:
         query_doc["is_error"] = is_error
-        upsert_query_document(query_doc, username, db_conn)
+        upsert_query_document(db_conn, query_doc, username)

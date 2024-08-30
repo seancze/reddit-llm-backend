@@ -1,0 +1,3 @@
+{
+  "query": "Who are the most influential users based on average comment scores? Please only consider users who have made at least 3 comments and only return the top 2 users along with the links to their comments."
+}

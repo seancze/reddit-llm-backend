@@ -7,7 +7,7 @@ def normalise_query(query):
     return re.sub(r"\s+", " ", query.strip().lower())
 
 
-def format_vector_search_result(vector_search_result: list, db_conn: MongoDBConnection):
+def format_vector_search_result(db_conn: MongoDBConnection, vector_search_result: list):
     comment_collection = db_conn.get_collection("comment")
     search_result = ""
 

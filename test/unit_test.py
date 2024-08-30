@@ -22,7 +22,7 @@ def call_api(prompt, options, context):
             }
         user_query = context["vars"]["query"]
 
-        response = handle_user_query(user_query, db_conn)
+        response = handle_user_query(db_conn, user_query, "PLACEHOLDER")
         pipeline_obj = get_mongo_pipeline(user_query)
         pipeline = pipeline_obj["pipeline"]
         result = {"output": {"response": response.response, "pipeline": pipeline}}

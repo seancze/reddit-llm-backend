@@ -1,0 +1,6 @@
+POST http://localhost:8000/query
+Content-Type: application/json
+@payload.json
+
+USE THE COMMAND BELOW TO RUN LOAD TESTING
+vegeta attack -targets=targets.txt -rate=5 -duration=1m | vegeta report

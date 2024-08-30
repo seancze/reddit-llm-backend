@@ -4,7 +4,7 @@ from app.constants import CACHE_DURATION
 from bson import ObjectId
 
 
-def upsert_query_document(query_doc: dict, username: str, db_conn: MongoDBConnection):
+def upsert_query_document(db_conn: MongoDBConnection, query_doc: dict, username: str):
     query_collection = db_conn.get_collection("query")
     used_cache = query_doc.get("used_cache", False)
     updated_utc = query_doc["updated_utc"]
@@ -31,7 +31,7 @@ def upsert_query_document(query_doc: dict, username: str, db_conn: MongoDBConnec
         )
 
 
-def update_query_vote(query_id: str, vote: int, db_conn: MongoDBConnection):
+def update_query_vote(db_conn: MongoDBConnection, query_id: str, vote: int):
     query_collection = db_conn.get_collection("query")
     updated_utc = int(time.time())
 
