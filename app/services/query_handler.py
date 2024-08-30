@@ -10,15 +10,17 @@ from app.db.get import get_cached_response, get_response_from_pipeline
 from app.schemas.query_response import QueryResponse
 
 
-def handle_user_query(query: str, db_conn: MongoDBConnection) -> QueryResponse:
+def handle_user_query(
+    query: str, username: str, db_conn: MongoDBConnection
+) -> QueryResponse:
     query = normalise_query(query)
     query_doc = {
         "_id": ObjectId(),
         "updated_utc": int(time.time()),
         "query": query,
-        "query_count": 1,
     }
     is_error = False
+
     try:
         # check if the query has been made recently
         cached_doc = get_cached_response(query, db_conn)
@@ -83,4 +85,4 @@ def handle_user_query(query: str, db_conn: MongoDBConnection) -> QueryResponse:
         raise e
     finally:
         query_doc["is_error"] = is_error
-        upsert_query_document(query_doc, db_conn)
+        upsert_query_document(query_doc, username, db_conn)

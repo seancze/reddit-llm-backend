@@ -21,7 +21,9 @@ async def root():
 @router.post("/query", response_model=QueryResponse)
 async def api_handle_user_query(query: QueryRequest, db_conn=Depends(get_db_client)):
     try:
-        response = await run_in_threadpool(handle_user_query, query.query, db_conn)
+        response = await run_in_threadpool(
+            handle_user_query, query.query, query.username, db_conn
+        )
         return response
     except Exception as e:
         print(traceback.format_exc())
