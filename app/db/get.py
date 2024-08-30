@@ -46,12 +46,12 @@ def get_response_from_pipeline(
     )
 
     if limit_index is not None:
-        # if $limit exists, update it to be at most 5
+        # if $limit exists, update it to be at most 10
         original_limit = pipeline[limit_index]["$limit"]
-        pipeline[limit_index]["$limit"] = min(5, original_limit)
+        pipeline[limit_index]["$limit"] = min(10, original_limit)
     else:
         # if $limit doesn't exist, add it to the end of the pipeline
-        pipeline.append({"$limit": 5})
+        pipeline.append({"$limit": 10})
 
     # execute the aggregation pipeline
     documents = list(collection.aggregate(pipeline))
