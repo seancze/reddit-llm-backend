@@ -34,7 +34,11 @@ async def api_handle_user_query(query: QueryRequest, db_conn=Depends(get_db_clie
 async def api_handle_vote(vote_request: VoteRequest, db_conn=Depends(get_db_client)):
     try:
         await run_in_threadpool(
-            handle_vote, db_conn, vote_request.query_id, vote_request.vote
+            handle_vote,
+            db_conn,
+            vote_request.query_id,
+            vote_request.vote,
+            vote_request.username,
         )
         return JSONResponse(
             status_code=200,

@@ -31,12 +31,14 @@ def upsert_query_document(db_conn: MongoDBConnection, query_doc: dict, username:
         )
 
 
-def update_query_vote(db_conn: MongoDBConnection, query_id: str, vote: int):
+def update_query_vote(
+    db_conn: MongoDBConnection, query_id: str, vote: int, username: str
+):
     query_collection = db_conn.get_collection("query")
     updated_utc = int(time.time())
 
     update_data = {
-        "$set": {"updated_utc": updated_utc, "vote": vote},
+        "$set": {"updated_utc": updated_utc, f"votes.{username}": vote},
     }
 
     result = query_collection.update_one({"_id": ObjectId(query_id)}, update_data)
