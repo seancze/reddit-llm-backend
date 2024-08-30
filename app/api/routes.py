@@ -27,7 +27,7 @@ async def api_handle_user_query(query: QueryRequest, db_conn=Depends(get_db_clie
         return response
     except Exception as e:
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500)
 
 
 @router.put("/vote")
@@ -46,4 +46,4 @@ async def api_handle_vote(vote_request: VoteRequest, db_conn=Depends(get_db_clie
         )
     except Exception as e:
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500)
