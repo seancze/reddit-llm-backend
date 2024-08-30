@@ -23,7 +23,7 @@ def handle_user_query(
 
     try:
         # check if the query has been made recently
-        cached_doc = get_cached_response(db_conn, query)
+        cached_doc = get_cached_response(db_conn, query, username)
         if cached_doc:
             query_doc["used_cache"] = True
             # amongst other fields, this updates "_id" to the id of the cached_doc
@@ -31,8 +31,11 @@ def handle_user_query(
             is_error = cached_doc.get("is_error", False)
             if is_error:
                 raise Exception("Cached document returned an error previously")
+
             return QueryResponse(
-                response=cached_doc["response"], query_id=cached_doc["_id"]
+                response=cached_doc["response"],
+                query_id=cached_doc["_id"],
+                user_vote=cached_doc.get("user_vote", 0),
             )
 
         mongo_pipeline_obj = get_mongo_pipeline(query)
@@ -74,7 +77,12 @@ def handle_user_query(
         response = get_llm_response(prompt)
         query_doc["response"] = response
 
-        return QueryResponse(response=response, query_id=query_doc["_id"])
+        # when a new query is made, the user's vote is guaranteed to be 0
+        return QueryResponse(
+            response=response,
+            query_id=query_doc["_id"],
+            user_vote=0,
+        )
     except Exception as e:
         is_error = True
         query_doc["error"] = str(e)

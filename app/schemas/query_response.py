@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
 from pydantic_core import core_schema
+from typing import Literal
 
 
 class PyObjectId(ObjectId):
@@ -21,8 +22,16 @@ class PyObjectId(ObjectId):
 class QueryResponse(BaseModel):
     response: str
     query_id: PyObjectId = Field(default_factory=PyObjectId)
+    user_vote: Literal[-1, 0, 1]
 
     model_config = {
         "arbitrary_types_allowed": True,
         "json_encoders": {ObjectId: str},
     }
+
+    @field_validator("user_vote")
+    @classmethod
+    def check_user_vote(cls, v):
+        if v not in [-1, 0, 1]:
+            raise ValueError("user_vote must be -1, 0, or 1")
+        return v

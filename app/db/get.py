@@ -4,7 +4,7 @@ from app.constants import CACHE_DURATION
 from app.utils.format_utils import get_human_readable_datetime
 
 
-def get_cached_response(db_conn: MongoDBConnection, query: str):
+def get_cached_response(db_conn: MongoDBConnection, query: str, username: str):
     query_collection = db_conn.get_collection("query")
 
     prev_time = int(time.time()) - CACHE_DURATION
@@ -13,14 +13,21 @@ def get_cached_response(db_conn: MongoDBConnection, query: str):
     search_query = {"query": query, "created_utc": {"$gte": prev_time}}
 
     existing_doc = query_collection.find_one(
-        search_query, {"response": 1, "_id": 1, "is_error": 1}
+        search_query, {"response": 1, "_id": 1, "is_error": 1, f"votes.{username}": 1}
     )
 
     # this means that the query has been made recently so we get the cached response
     if existing_doc:
+        # extract the vote for the specific username
+        # if the user has not voted, the default vote is 0
+        user_vote = existing_doc.get("votes", {}).get(username, 0)
+
+        # add the user's vote to the returned document
+        existing_doc["user_vote"] = user_vote
+
         return existing_doc
 
-    # simply return None instaed of raising an exception to allow a response to be generated for this query
+    # simply return None instead of raising an exception to allow a response to be generated for this query
     return None
 
 
