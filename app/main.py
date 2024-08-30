@@ -1,21 +1,24 @@
 import uvicorn
 import os
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from app.db.conn import lifespan
 from app.api.routes import router
-from slowapi import Limiter
+from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 
+
 # create a limiter instance
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
 
 app = FastAPI(lifespan=lifespan)
 
 # add rate limiter
 app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
 origins = [
@@ -30,24 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# apply rate limiting to all routes
-@app.middleware("http")
-async def global_rate_limit(request: Request, call_next):
-    # skip rate limiting for OPTIONS requests
-    # apparently, browsers send an OPTIONS request before sending a POST request to check if the server allows the request
-    if request.method == "OPTIONS":
-        return await call_next(request)
-    try:
-        response = await limiter.limit("30/minute")(call_next)(request)
-        return response
-    except RateLimitExceeded as e:
-        print(f"Error: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            content={"error": "Rate limit exceeded."},
-        )
 
 
 app.include_router(router)
