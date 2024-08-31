@@ -43,23 +43,23 @@ def handle_user_query(
 
         # if the pipeline is None, it means that we are not supposed to query the database
         # hence, we set vector search to True
-        use_vector_search = mongo_pipeline_obj["pipeline"] is None
+        use_vector_search = mongo_pipeline_obj.pipeline is None
         prompt = f"""User Query:
     {query}
 
     Data from database:"""
 
-        if mongo_pipeline_obj["pipeline"]:
+        if mongo_pipeline_obj.pipeline:
             mongodb_data = get_response_from_pipeline(
                 db_conn,
-                mongo_pipeline_obj["collection_name"],
-                mongo_pipeline_obj["pipeline"],
+                mongo_pipeline_obj.collection_name,
+                mongo_pipeline_obj.pipeline,
             )
             # if the data returned is empty we should use vector search
             if len(mongodb_data) == 0:
                 use_vector_search = True
             else:
-                prompt += f"""\n{mongodb_data}\nDatabase query: {mongo_pipeline_obj["pipeline"]}"""
+                prompt += f"""\n{mongodb_data}\nDatabase query: {mongo_pipeline_obj.pipeline}"""
 
         if use_vector_search:
             thread_collection = db_conn.get_collection("thread")
