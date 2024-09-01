@@ -19,6 +19,7 @@ Capabilities:
 When responding:
 1. Provide concise, evidence-based answers using local data
 2. When providing evidence-based answers, use the URLs supplied by the user to create hyperlinks to sources.
+3. Provide your answers in point form
 
 IMPORTANT: Keep responses under 200 words for clarity and focus."""
 
