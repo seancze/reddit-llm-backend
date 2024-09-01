@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.db.conn import MongoDBConnection
 
 
@@ -41,9 +41,15 @@ def format_vector_search_result(db_conn: MongoDBConnection, vector_search_result
 
 def get_human_readable_datetime(utc_timestamp: int):
     # convert the UTC timestamp to a datetime object
-    dt = datetime.fromtimestamp(utc_timestamp, tz=timezone.utc)
+    dt_utc = datetime.fromtimestamp(utc_timestamp, tz=timezone.utc)
+
+    # create a timezone object for GMT+8
+    gmt8 = timezone(timedelta(hours=8))
+
+    # convert UTC to GMT+8
+    dt_gmt8 = dt_utc.astimezone(gmt8)
 
     # the formatted date should look like "Aug 31 2024, 08:15PM"
-    formatted_date = dt.strftime("%b %d %Y, %I:%M%p")
+    formatted_date = dt_gmt8.strftime("%b %d %Y, %I:%M%p")
 
     return formatted_date
