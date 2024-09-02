@@ -2,6 +2,30 @@ import time
 from app.db.conn import MongoDBConnection
 from app.constants import CACHE_DURATION
 from app.utils.format_utils import get_human_readable_datetime
+from bson import ObjectId
+from typing import Optional
+
+
+def get_query_by_id(db_conn: MongoDBConnection, query_id: str, username: Optional[str]):
+    query_collection = db_conn.get_collection("query")
+
+    try:
+        object_id = ObjectId(query_id)
+    except:
+        # return None if the id is invalid
+        return None
+
+    # find the document by its _id
+    fields = {"response": 1, "_id": 1, "is_error": 1}
+    if username is not None:
+        fields[f"votes.{username}"] = 1
+    existing_doc = query_collection.find_one({"_id": object_id}, fields)
+
+    if existing_doc:
+        return _format_query_doc(existing_doc, username)
+
+    # return None to allow the service to generate a 404 response (i.e. for better separation of concerns)
+    return None
 
 
 def get_cached_response(db_conn: MongoDBConnection, query: str, username: str):
@@ -18,14 +42,7 @@ def get_cached_response(db_conn: MongoDBConnection, query: str, username: str):
 
     # this means that the query has been made recently so we get the cached response
     if existing_doc:
-        # extract the vote for the specific username
-        # if the user has not voted, the default vote is 0
-        user_vote = existing_doc.get("votes", {}).get(username, 0)
-
-        # add the user's vote to the returned document
-        existing_doc["user_vote"] = user_vote
-
-        return existing_doc
+        return _format_query_doc(existing_doc, username)
 
     # simply return None instead of raising an exception to allow a response to be generated for this query
     return None
@@ -61,3 +78,14 @@ def get_response_from_pipeline(
             del doc["created_utc"]
 
     return documents
+
+
+def _format_query_doc(query_doc, username: str):
+    # extract the vote for the specific username
+    # if the user has not voted, the default vote is 0
+    user_vote = query_doc.get("votes", {}).get(username, 0)
+
+    # add the user's vote to the returned document
+    query_doc["user_vote"] = user_vote
+
+    return query_doc
