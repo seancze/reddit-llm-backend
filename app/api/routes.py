@@ -1,14 +1,16 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Path
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from app.schemas.query_request import QueryRequest
 from app.schemas.query_response import QueryResponse
 from app.schemas.vote_request import VoteRequest
 from app.services.query.post import query_post
+from app.services.query.get import query_get
 from app.services.vote.put import vote_put
 from app.db.conn import get_db_client
-from app.utils.auth_utils import verify_token
+from app.utils.auth_utils import verify_token, verify_token_or_anonymous
+from typing import Optional
 
 
 router = APIRouter()
@@ -17,6 +19,22 @@ router = APIRouter()
 @router.get("/health")
 async def root(username: str = Depends(verify_token)):
     return {"message": "Healthy", "user": username}
+
+
+@router.get("/query/{query_id}", response_model=QueryResponse)
+async def api_get_user_query(
+    db_conn=Depends(get_db_client),
+    username: Optional[str] = Depends(verify_token_or_anonymous),
+    query_id: str = Path(description="The ID of the query"),
+):
+    try:
+        response = await run_in_threadpool(query_get, db_conn, query_id, username)
+        return response
+    except HTTPException as e:
+        raise e
+    except:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500)
 
 
 @router.post("/query", response_model=QueryResponse)
