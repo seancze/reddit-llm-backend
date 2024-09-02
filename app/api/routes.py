@@ -1,12 +1,12 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Path
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from app.schemas.query_request import QueryRequest
 from app.schemas.query_response import QueryResponse
 from app.schemas.vote_request import VoteRequest
-from app.services.query_handler import handle_user_query
-from app.services.vote_handler import handle_vote
+from app.services.query.post import query_post
+from app.services.vote.put import vote_put
 from app.db.conn import get_db_client
 
 
@@ -19,10 +19,10 @@ async def root():
 
 
 @router.post("/query", response_model=QueryResponse)
-async def api_handle_user_query(query: QueryRequest, db_conn=Depends(get_db_client)):
+async def api_post_user_query(query: QueryRequest, db_conn=Depends(get_db_client)):
     try:
         response = await run_in_threadpool(
-            handle_user_query, db_conn, query.query, query.username
+            query_post, db_conn, query.query, query.username
         )
         return response
     except Exception as e:
@@ -31,10 +31,10 @@ async def api_handle_user_query(query: QueryRequest, db_conn=Depends(get_db_clie
 
 
 @router.put("/vote")
-async def api_handle_vote(vote_request: VoteRequest, db_conn=Depends(get_db_client)):
+async def api_put_vote(vote_request: VoteRequest, db_conn=Depends(get_db_client)):
     try:
         await run_in_threadpool(
-            handle_vote,
+            vote_put,
             db_conn,
             vote_request.query_id,
             vote_request.vote,
