@@ -4,11 +4,25 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jwt.exceptions import PyJWTError
 from dotenv import load_dotenv
+from typing import Optional
 
 load_dotenv()
 
 
 auth_scheme = HTTPBearer()
+
+
+def verify_token_or_anonymous(
+    auth_credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        HTTPBearer(auto_error=False)
+    ),
+):
+    if auth_credentials is None:
+        return None
+    try:
+        return verify_token(auth_credentials)
+    except HTTPException:
+        return None
 
 
 def verify_token(auth_credentials: HTTPAuthorizationCredentials = Depends(auth_scheme)):
