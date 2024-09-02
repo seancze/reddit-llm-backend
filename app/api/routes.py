@@ -3,7 +3,8 @@ from fastapi import APIRouter, HTTPException, Depends, Path
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from app.schemas.query_request import QueryRequest
-from app.schemas.query_response import QueryResponse
+from app.schemas.query_get_response import QueryGetResponse
+from app.schemas.query_post_response import QueryPostResponse
 from app.schemas.vote_request import VoteRequest
 from app.services.query.post import query_post
 from app.services.query.get import query_get
@@ -21,7 +22,7 @@ async def root(username: str = Depends(verify_token)):
     return {"message": "Healthy", "user": username}
 
 
-@router.get("/query/{query_id}", response_model=QueryResponse)
+@router.get("/query/{query_id}", response_model=QueryGetResponse)
 async def api_get_user_query(
     db_conn=Depends(get_db_client),
     username: Optional[str] = Depends(verify_token_or_anonymous),
@@ -37,7 +38,7 @@ async def api_get_user_query(
         raise HTTPException(status_code=500)
 
 
-@router.post("/query", response_model=QueryResponse)
+@router.post("/query", response_model=QueryPostResponse)
 async def api_post_user_query(
     query: QueryRequest,
     db_conn=Depends(get_db_client),

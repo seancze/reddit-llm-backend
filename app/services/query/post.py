@@ -7,10 +7,12 @@ from pymongo.errors import OperationFailure
 from app.db.upsert import upsert_query_document
 from app.db.conn import MongoDBConnection
 from app.db.get import get_cached_response, get_response_from_pipeline
-from app.schemas.query_response import QueryResponse
+from app.schemas.query_post_response import QueryPostResponse
 
 
-def query_post(db_conn: MongoDBConnection, query: str, username: str) -> QueryResponse:
+def query_post(
+    db_conn: MongoDBConnection, query: str, username: str
+) -> QueryPostResponse:
     query = normalise_query(query)
     query_doc = {
         "_id": ObjectId(),
@@ -33,7 +35,7 @@ def query_post(db_conn: MongoDBConnection, query: str, username: str) -> QueryRe
                     num_tries = MAX_TRIES
                     raise Exception("Cached document returned an error previously")
 
-                return QueryResponse(
+                return QueryPostResponse(
                     response=cached_doc["response"],
                     query_id=cached_doc["_id"],
                     user_vote=cached_doc.get("user_vote", 0),
@@ -78,7 +80,7 @@ def query_post(db_conn: MongoDBConnection, query: str, username: str) -> QueryRe
             query_doc["response"] = response
 
             # when a new query is made, the user's vote is guaranteed to be 0
-            return QueryResponse(
+            return QueryPostResponse(
                 response=response,
                 query_id=query_doc["_id"],
                 user_vote=0,

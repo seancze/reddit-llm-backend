@@ -19,7 +19,7 @@ class PyObjectId(ObjectId):
         )
 
 
-class QueryResponse(BaseModel):
+class QueryPostResponse(BaseModel):
     response: str
     query_id: PyObjectId = Field(default_factory=PyObjectId)
     user_vote: Literal[-1, 0, 1]

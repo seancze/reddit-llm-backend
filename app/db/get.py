@@ -16,7 +16,7 @@ def get_query_by_id(db_conn: MongoDBConnection, query_id: str, username: Optiona
         return None
 
     # find the document by its _id
-    fields = {"response": 1, "_id": 1, "is_error": 1}
+    fields = {"query": 1, "response": 1, "_id": 1, "is_error": 1}
     if username is not None:
         fields[f"votes.{username}"] = 1
     existing_doc = query_collection.find_one({"_id": object_id}, fields)
