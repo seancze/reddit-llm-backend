@@ -1,10 +1,12 @@
 import jwt
 import os
+from datetime import datetime
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jwt.exceptions import PyJWTError
+from jwt.exceptions import PyJWTError, ExpiredSignatureError
 from dotenv import load_dotenv
 from typing import Optional
+
 
 load_dotenv()
 
@@ -35,8 +37,12 @@ def verify_token(auth_credentials: HTTPAuthorizationCredentials = Depends(auth_s
             os.environ.get("JWT_SECRET"),
             algorithms=[algorithm],
         )
+
         return payload["username"]
 
+    except ExpiredSignatureError as e:
+        print(f"JWT Error: Token expired - {str(e)}")
+        raise HTTPException(status_code=401, detail="Token has expired")
     except PyJWTError as e:
         print(f"JWT Error: {str(e)}")
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
