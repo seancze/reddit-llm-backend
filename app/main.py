@@ -24,6 +24,7 @@ app.add_middleware(SlowAPIMiddleware)
 origins = [
     "http://localhost:3000",
     "https://reddit-llm.vercel.app",
+    "https://testing-nine-lake-93.vercel.app",  # staging
 ]
 
 app.add_middleware(
