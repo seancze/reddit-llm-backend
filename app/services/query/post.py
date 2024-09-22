@@ -29,23 +29,6 @@ def query_post(
     MAX_TRIES = 3
     while num_tries < MAX_TRIES:
         try:
-            # check if the query has been made recently
-            cached_doc = get_cached_response(db_conn, query, username)
-            if cached_doc:
-                query_doc["used_cache"] = True
-                # amongst other fields, this updates "_id" to the id of the cached_doc
-                query_doc.update(cached_doc)
-                is_error = cached_doc.get("is_error", False)
-                if is_error:
-                    num_tries = MAX_TRIES
-                    raise Exception("Cached document returned an error previously")
-
-                return QueryPostResponse(
-                    response=cached_doc["response"],
-                    query_id=cached_doc["_id"],
-                    user_vote=cached_doc.get("user_vote", 0),
-                )
-
             mongo_pipeline_obj = get_mongo_pipeline(query)
             query_doc.update(mongo_pipeline_obj)
 
