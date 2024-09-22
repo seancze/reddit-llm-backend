@@ -1,5 +1,6 @@
 import time
 from bson import ObjectId
+from typing import Optional
 from app.utils.vector_search import vector_search
 from app.utils.openai_utils import get_mongo_pipeline, get_llm_response
 from app.utils.format_utils import normalise_query, format_vector_search_result
@@ -11,11 +12,15 @@ from app.schemas.query_post_response import QueryPostResponse
 
 
 def query_post(
-    db_conn: MongoDBConnection, query: str, username: str
+    db_conn: MongoDBConnection, query: str, username: str, chat_id: Optional[str] = None
 ) -> QueryPostResponse:
     query = normalise_query(query)
+    query_id = ObjectId()
     query_doc = {
-        "_id": ObjectId(),
+        "_id": query_id,
+        # if chat_id is none, this is the first question in the conversation
+        # so we set the chat_id to the query_id of the first question
+        "chat_id": ObjectId(chat_id) if chat_id else query_id,
         "updated_utc": int(time.time()),
         "query": query,
     }
