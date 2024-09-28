@@ -75,10 +75,13 @@ def get_response_from_pipeline(
 
     # execute the aggregation pipeline
     documents = list(collection.aggregate(pipeline))
-    if documents and "created_utc" in documents[0]:
-        for doc in documents:
+    for doc in documents:
+        if "created_utc" in doc:
             doc["created_date"] = get_human_readable_datetime(doc["created_utc"])
             del doc["created_utc"]
+        else:
+            # if one doc does not have "created_utc", all docs will not have "created_utc"
+            break
 
     return documents
 
