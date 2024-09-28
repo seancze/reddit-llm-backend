@@ -1,5 +1,6 @@
 from app.db.conn import MongoDBConnection
 from app.db.get import get_chat_by_id
+from app.db.upsert import update_query_count
 from app.schemas.query_get_response import QueryGetResponse
 from fastapi import HTTPException
 from typing import Optional
@@ -13,6 +14,7 @@ def chat_get(
         raise HTTPException(status_code=404, detail="Query not found")
 
     last_query = chat_obj["queries"][-1]
+    update_query_count(db_conn, last_query["_id"])
     return QueryGetResponse(
         response=chat_obj["messages"],
         query_id=last_query["_id"],

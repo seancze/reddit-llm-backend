@@ -1,6 +1,5 @@
 import time
 from app.db.conn import MongoDBConnection
-from app.constants import CACHE_DURATION
 from bson import ObjectId
 
 
@@ -21,6 +20,20 @@ def update_query_vote(
 
     update_data = {
         "$set": {"updated_utc": updated_utc, f"votes.{username}": vote},
+    }
+
+    result = query_collection.update_one({"_id": ObjectId(query_id)}, update_data)
+
+    return result
+
+
+def update_query_count(db_conn: MongoDBConnection, query_id: str):
+    query_collection = db_conn.get_collection("query")
+    updated_utc = int(time.time())
+
+    update_data = {
+        "$set": {"updated_utc": updated_utc},
+        "$inc": {"query_count": 1},
     }
 
     result = query_collection.update_one({"_id": ObjectId(query_id)}, update_data)
