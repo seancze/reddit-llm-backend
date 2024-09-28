@@ -16,6 +16,9 @@ def upsert_query_document(db_conn: MongoDBConnection, query_doc: dict, username:
             {"$set": {"updated_utc": updated_utc}, "$inc": {"query_count": 1}},
         )
     else:
+        # TODO: in future, explicitly set the fields that will be upserted instead of upserting the entire query_doc
+        # pop the _id field from the query_doc so that we can ensure it is only set when inserted (see $setOnInsert)
+        query_id = query_doc.pop("_id", None)
         # even though this looks like an upsert operation
         # at this stage, the query document should not exist
         # so it is acting more like an insert operation
@@ -24,7 +27,11 @@ def upsert_query_document(db_conn: MongoDBConnection, query_doc: dict, username:
             {"query": query, "created_utc": {"$gte": prev_time}},
             {
                 "$set": query_doc,
-                "$setOnInsert": {"created_utc": updated_utc, "username": username},
+                "$setOnInsert": {
+                    "created_utc": updated_utc,
+                    "username": username,
+                    "_id": query_id,
+                },
                 "$inc": {"query_count": 1},
             },
             upsert=True,
