@@ -1,5 +1,8 @@
-from pydantic import BaseModel
+from typing import Optional
+from app.schemas.message import Message
+from app.schemas.role import BaseModelWithRoleEncoder
 
 
-class QueryRequest(BaseModel):
-    query: str
+class QueryRequest(BaseModelWithRoleEncoder):
+    query: list[Message]
+    chat_id: Optional[str] = None

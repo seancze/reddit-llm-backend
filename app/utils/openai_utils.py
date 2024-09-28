@@ -5,24 +5,22 @@ import json
 import re
 from dotenv import load_dotenv
 from app.schemas.mongo_pipeline_response import MongoPipelineResponse
+from app.schemas.message import Message
 
 
 load_dotenv()
 
 
-def get_mongo_pipeline(user_query: str) -> MongoPipelineResponse:
+def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
+    messages = [
+        {"role": "system", "content": constants.SYSTEM_PROMPT_GET_MONGODB_PIPELINE},
+    ] + user_query
 
     completion = openai.beta.chat.completions.parse(
         # NOTE: hardcode the model for now as this is the only gpt4o model that supports structured outputs
         # see here for more information: https://platform.openai.com/docs/guides/structured-outputs/introduction
         model="gpt-4o-2024-08-06",
-        messages=[
-            {"role": "system", "content": constants.SYSTEM_PROMPT_GET_MONGODB_PIPELINE},
-            {
-                "role": "user",
-                "content": f"{user_query}",
-            },
-        ],
+        messages=messages,
         response_format=MongoPipelineResponse,
         temperature=0.2,
         top_p=0.2,
@@ -42,16 +40,12 @@ def get_mongo_pipeline(user_query: str) -> MongoPipelineResponse:
         raise e
 
 
-def get_llm_response(prompt):
+def get_llm_response(prompt: list[Message]):
+    messages = [
+        {"role": "system", "content": constants.SYSTEM_PROMPT},
+    ] + prompt
     completion = openai.chat.completions.create(
-        model=os.environ.get("OPENAI_MODEL"),
-        messages=[
-            {"role": "system", "content": constants.SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
+        model=os.environ.get("OPENAI_MODEL"), messages=messages
     )
 
     return completion.choices[0].message.content

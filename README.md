@@ -43,13 +43,19 @@ git subtree push --prefix app heroku main
 To get started, set your `OPENAI_API_KEY` environment variable, or other required keys for the providers you selected.
 
 ### Run evaluation
+**End-to-end**
 ```shell
-npx promptfoo@latest eval -c test/promptfooconfig.yaml --no-cache
+npx promptfoo@latest eval -c test/end_to_end/promptfooconfig.yaml --no-cache
+```
+
+**Mongo pipeline**
+```shell
+npx promptfoo@latest eval -c test/mongo_pipeline/promptfooconfig.yaml --no-cache
 ```
 
 **View logs**
 ```shell
-npx promptfoo@latest eval -c test/promptfooconfig.yaml --no-cache --verbose
+npx promptfoo@latest eval -c test/end_to_end/promptfooconfig.yaml --no-cache --verbose
 ```
 
 ### View evaluation UI

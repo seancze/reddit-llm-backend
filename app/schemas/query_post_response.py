@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 from bson import ObjectId
 from pydantic_core import core_schema
 from typing import Literal
+from app.schemas.message import Message
+from app.schemas.role import BaseModelWithRoleEncoder
 
 
 class PyObjectId(ObjectId):
@@ -19,9 +21,10 @@ class PyObjectId(ObjectId):
         )
 
 
-class QueryPostResponse(BaseModel):
-    response: str
+class QueryPostResponse(BaseModelWithRoleEncoder):
+    response: list[Message]
     query_id: PyObjectId = Field(default_factory=PyObjectId)
+    chat_id: PyObjectId = Field(default_factory=PyObjectId)
     user_vote: Literal[-1, 0, 1]
 
     model_config = {

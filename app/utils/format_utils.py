@@ -1,10 +1,13 @@
 import re
 from datetime import datetime, timezone, timedelta
 from app.db.conn import MongoDBConnection
+from app.schemas.message import Message
 
 
-def normalise_query(query):
-    return re.sub(r"\s+", " ", query.strip().lower())
+def normalise_query(query: list[Message]):
+    for i in range(len(query)):
+        query[i].content = re.sub(r"\s+", " ", query[i].content.strip().lower())
+    return query
 
 
 def format_vector_search_result(db_conn: MongoDBConnection, vector_search_result: list):

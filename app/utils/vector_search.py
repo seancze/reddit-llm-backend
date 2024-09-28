@@ -1,6 +1,8 @@
 import openai
 import os
 from dotenv import load_dotenv
+from app.schemas.message import Message
+from pymongo.collection import Collection
 
 load_dotenv()
 
@@ -11,7 +13,7 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 
 # TODO: Perhaps, before doing a vector search, we first filter for those with at least x number of upvotes?
 # TODO: Alternatively, do vector search first THEN filter for upvotes?
-def vector_search(user_query, collection):
+def vector_search(user_query: list[Message], collection: Collection):
     """
     Perform a vector search in the MongoDB collection based on the user query.
 
@@ -23,8 +25,9 @@ def vector_search(user_query, collection):
     list: A list of matching documents.
     """
     print(f"user_query: {user_query}")
+    user_query_str = "\n".join([msg.content for msg in user_query])
     # Generate embedding for the user query
-    query_embedding = _get_embedding(user_query)
+    query_embedding = _get_embedding(user_query_str)
 
     if query_embedding is None:
         return "Invalid query or embedding generation failed."
