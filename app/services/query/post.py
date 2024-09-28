@@ -3,11 +3,11 @@ from bson import ObjectId
 from typing import Optional
 from app.utils.vector_search import vector_search
 from app.utils.openai_utils import get_mongo_pipeline, get_llm_response
-from app.utils.format_utils import normalise_query, format_vector_search_result
+from app.utils.format_utils import normalise_query
 from pymongo.errors import OperationFailure
 from app.db.upsert import insert_query_document
 from app.db.conn import MongoDBConnection
-from app.db.get import get_response_from_pipeline
+from app.db.get import get_response_from_pipeline, get_thread_metadata_and_top_comments
 from app.schemas.query_post_response import QueryPostResponse
 from app.schemas.message import Message
 from app.schemas.role import Role
@@ -35,6 +35,7 @@ def query_post(
     MAX_TRIES = 3
     while num_tries < MAX_TRIES:
         try:
+            thread_metadata = None
             mongo_pipeline_obj = get_mongo_pipeline(query)
             query_doc.update(mongo_pipeline_obj)
 
@@ -68,13 +69,15 @@ def query_post(
                     {"id": result["id"], "score": result["vector_search_score"]}
                     for result in vector_search_result
                 ]
-                search_result = format_vector_search_result(
+                search_result, thread_metadata = get_thread_metadata_and_top_comments(
                     db_conn, vector_search_result
                 )
 
                 query[-1].content += f"""\n{search_result}"""
 
             response = get_llm_response(query)
+            if thread_metadata:
+                response += f"\n\n{thread_metadata}"
             query_with_response = query + [
                 Message(role=Role.ASSISTANT, content=response)
             ]
