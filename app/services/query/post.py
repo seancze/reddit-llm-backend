@@ -7,12 +7,17 @@ from app.utils.format_utils import normalise_query, format_vector_search_result
 from pymongo.errors import OperationFailure
 from app.db.upsert import upsert_query_document
 from app.db.conn import MongoDBConnection
-from app.db.get import get_cached_response, get_response_from_pipeline
+from app.db.get import get_response_from_pipeline
 from app.schemas.query_post_response import QueryPostResponse
+from app.schemas.message import Message
+from app.schemas.role import Role
 
 
 def query_post(
-    db_conn: MongoDBConnection, query: str, username: str, chat_id: Optional[str] = None
+    db_conn: MongoDBConnection,
+    query: list[Message],
+    username: str,
+    chat_id: Optional[str] = None,
 ) -> QueryPostResponse:
     query = normalise_query(query)
     query_id = ObjectId()
@@ -22,8 +27,9 @@ def query_post(
         # so we set the chat_id to the query_id of the first question
         "chat_id": ObjectId(chat_id) if chat_id else query_id,
         "updated_utc": int(time.time()),
-        "query": query,
+        "query": query[-1].content,
     }
+
     is_error = False
     num_tries = 0
     MAX_TRIES = 3
@@ -35,7 +41,9 @@ def query_post(
             # if the pipeline is None, it means that we are not supposed to query the database
             # hence, we set vector search to True
             use_vector_search = mongo_pipeline_obj.pipeline is None
-            prompt = f"""User Query:\n{query}\n\nData from database:"""
+            query[-1].content = (
+                f"""User Query:\n{query[-1].content}\n\nData from database:"""
+            )
 
             if mongo_pipeline_obj.pipeline:
                 mongodb_data = get_response_from_pipeline(
@@ -47,7 +55,9 @@ def query_post(
                 if len(mongodb_data) == 0:
                     use_vector_search = True
                 else:
-                    prompt += f"""\n{mongodb_data}\nDatabase query: {mongo_pipeline_obj.pipeline}"""
+                    query[
+                        -1
+                    ].content += f"""\n{mongodb_data}\nDatabase query: {mongo_pipeline_obj.pipeline}"""
 
             if use_vector_search:
                 thread_collection = db_conn.get_collection("thread")
@@ -62,15 +72,19 @@ def query_post(
                     db_conn, vector_search_result
                 )
 
-                prompt += f"""\n{search_result}"""
+                query[-1].content += f"""\n{search_result}"""
 
-            response = get_llm_response(prompt)
+            response = get_llm_response(query)
+            query_with_response = query + [
+                Message(role=Role.ASSISTANT, content=response)
+            ]
             query_doc["response"] = response
 
             # when a new query is made, the user's vote is guaranteed to be 0
             return QueryPostResponse(
-                response=response,
+                response=query_with_response,
                 query_id=query_doc["_id"],
+                chat_id=query_doc["chat_id"],
                 user_vote=0,
             )
         except Exception as e:
