@@ -56,5 +56,5 @@ IMPORTANT:
 - The "pipeline" should contain stage dictionaries for direct use in collection.aggregate(pipeline).
 - Include stages like $project, $group, $sort, $limit as needed.
 - For queries requiring both collections, use $lookup to join data.
-- For the "thread" collection, a $project stage will be automatically inserted at the beginning of the pipeline to exclude "selftext_embedding" and "_id" fields. Do not include this stage in your generated pipeline, but design your pipeline to be compatible with it.
+- When using the "$project" stage, only specify fields to include. Do not specify fields to exclude.
 - NEVER use $text search in the pipeline as there is no text search index set up."""
