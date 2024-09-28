@@ -4,38 +4,13 @@ from app.constants import CACHE_DURATION
 from bson import ObjectId
 
 
-def upsert_query_document(db_conn: MongoDBConnection, query_doc: dict, username: str):
+def insert_query_document(db_conn: MongoDBConnection, query_doc: dict, username: str):
     query_collection = db_conn.get_collection("query")
-    used_cache = query_doc.get("used_cache", False)
     updated_utc = query_doc["updated_utc"]
-    query = query_doc["query"]
-
-    if used_cache:
-        query_collection.update_one(
-            {"_id": query_doc["_id"]},
-            {"$set": {"updated_utc": updated_utc}, "$inc": {"query_count": 1}},
-        )
-    else:
-        # TODO: in future, explicitly set the fields that will be upserted instead of upserting the entire query_doc
-        # pop the _id field from the query_doc so that we can ensure it is only set when inserted (see $setOnInsert)
-        query_id = query_doc.pop("_id", None)
-        # even though this looks like an upsert operation
-        # at this stage, the query document should not exist
-        # so it is acting more like an insert operation
-        prev_time = updated_utc - CACHE_DURATION
-        query_collection.update_one(
-            {"query": query, "created_utc": {"$gte": prev_time}},
-            {
-                "$set": query_doc,
-                "$setOnInsert": {
-                    "created_utc": updated_utc,
-                    "username": username,
-                    "_id": query_id,
-                },
-                "$inc": {"query_count": 1},
-            },
-            upsert=True,
-        )
+    query_doc["username"] = username
+    query_doc["created_utc"] = updated_utc
+    query_doc["query_count"] = 1
+    query_collection.insert_one(query_doc)
 
 
 def update_query_vote(

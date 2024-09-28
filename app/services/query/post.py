@@ -5,7 +5,7 @@ from app.utils.vector_search import vector_search
 from app.utils.openai_utils import get_mongo_pipeline, get_llm_response
 from app.utils.format_utils import normalise_query, format_vector_search_result
 from pymongo.errors import OperationFailure
-from app.db.upsert import upsert_query_document
+from app.db.upsert import insert_query_document
 from app.db.conn import MongoDBConnection
 from app.db.get import get_response_from_pipeline
 from app.schemas.query_post_response import QueryPostResponse
@@ -101,4 +101,4 @@ def query_post(
             # only upsert the query document if the number of tries is exhausted or no error occurred
             if num_tries >= MAX_TRIES or not is_error:
                 query_doc["is_error"] = is_error
-                upsert_query_document(db_conn, query_doc, username)
+                insert_query_document(db_conn, query_doc, username)
