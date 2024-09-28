@@ -1,6 +1,4 @@
-import time
 from app.db.conn import MongoDBConnection
-from app.constants import CACHE_DURATION
 from app.utils.format_utils import get_human_readable_datetime
 from bson import ObjectId
 from typing import Optional
@@ -50,48 +48,6 @@ def get_chat_by_id(db_conn: MongoDBConnection, chat_id: str, username: Optional[
         }
 
     # return None to allow the service to generate a 404 response (i.e. for better separation of concerns)
-    return None
-
-
-def get_query_by_id(db_conn: MongoDBConnection, query_id: str, username: Optional[str]):
-    query_collection = db_conn.get_collection("query")
-
-    try:
-        object_id = ObjectId(query_id)
-    except:
-        # return None if the id is invalid
-        return None
-
-    # find the document by its _id
-    fields = {"query": 1, "response": 1, "_id": 1, "is_error": 1}
-    if username is not None:
-        fields[f"votes.{username}"] = 1
-    existing_doc = query_collection.find_one({"_id": object_id}, fields)
-
-    if existing_doc:
-        return _format_query_doc(existing_doc, username)
-
-    # return None to allow the service to generate a 404 response (i.e. for better separation of concerns)
-    return None
-
-
-def get_cached_response(db_conn: MongoDBConnection, query: str, username: str):
-    query_collection = db_conn.get_collection("query")
-
-    prev_time = int(time.time()) - CACHE_DURATION
-
-    # check if a document with the same query has been made recently
-    search_query = {"query": query, "created_utc": {"$gte": prev_time}}
-
-    existing_doc = query_collection.find_one(
-        search_query, {"response": 1, "_id": 1, "is_error": 1, f"votes.{username}": 1}
-    )
-
-    # this means that the query has been made recently so we get the cached response
-    if existing_doc:
-        return _format_query_doc(existing_doc, username)
-
-    # simply return None instead of raising an exception to allow a response to be generated for this query
     return None
 
 
