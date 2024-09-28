@@ -8,6 +8,7 @@ from app.schemas.query_post_response import QueryPostResponse
 from app.schemas.vote_request import VoteRequest
 from app.services.query.post import query_post
 from app.services.query.get import query_get
+from app.services.chat.get import chat_get
 from app.services.vote.put import vote_put
 from app.db.conn import get_db_client
 from app.utils.auth_utils import verify_token, verify_token_or_anonymous
@@ -72,6 +73,22 @@ async def api_put_vote(
             status_code=200,
             content={"message": f"Successfully updated vote to {vote_request.vote}"},
         )
+    except:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500)
+
+
+@router.get("/chat/{chat_id}", response_model=QueryGetResponse)
+async def api_get_chat(
+    db_conn=Depends(get_db_client),
+    username: Optional[str] = Depends(verify_token_or_anonymous),
+    chat_id: str = Path(description="The ID of the chat"),
+):
+    try:
+        response = await run_in_threadpool(chat_get, db_conn, chat_id, username)
+        return response
+    except HTTPException as e:
+        raise e
     except:
         print(traceback.format_exc())
         raise HTTPException(status_code=500)
