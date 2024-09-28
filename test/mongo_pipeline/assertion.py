@@ -2,6 +2,13 @@ from typing import Dict, Union, Any
 
 
 def get_assert(output, context) -> Union[bool, float, Dict[str, Any]]:
+    enable_test = context["vars"]["enable_test"]
+    if enable_test.upper() == "FALSE":
+        return {
+            "pass": True,
+            "score": 1,
+            "reason": "Test case is disabled. Set 'enable_test' to 'True' to enable it.",
+        }
 
     is_pipeline_generated = context["vars"]["is_pipeline_generated"].upper() == "TRUE"
     pipeline = output["pipeline"]

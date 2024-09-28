@@ -1,0 +1,16 @@
+# Learn more about building a configuration: https://promptfoo.dev/docs/configuration/guide
+description: "Mongo pipeline evaluation"
+
+prompts:
+  - ""
+
+providers:
+  - "python:test.py"
+
+defaultTest:
+  assert:
+    - type: python
+      value: file://assertion.py
+
+tests:
+  - ../data.csv

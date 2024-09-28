@@ -5,12 +5,7 @@ prompts:
   - ""
 
 providers:
-  - "python:unit_test.py"
-
-defaultTest:
-  assert:
-    - type: python
-      value: file://assertion.py
+  - "python:test.py"
 
 tests:
-  - data.csv
+  - ../data.csv
