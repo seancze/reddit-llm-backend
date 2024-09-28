@@ -4,6 +4,53 @@ from app.constants import CACHE_DURATION
 from app.utils.format_utils import get_human_readable_datetime
 from bson import ObjectId
 from typing import Optional
+from app.schemas.role import Role
+from app.schemas.message import Message
+
+
+def get_chat_by_id(db_conn: MongoDBConnection, chat_id: str, username: Optional[str]):
+    query_collection = db_conn.get_collection("query")
+
+    try:
+        object_id = ObjectId(chat_id)
+    except:
+        # return None if the id is invalid
+        return None
+
+    # find all documents by chat_id and sort by created_utc
+    fields = {
+        "query": 1,
+        "response": 1,
+        "_id": 1,
+        "is_error": 1,
+        "created_utc": 1,
+        "username": 1,
+    }
+    if username is not None:
+        fields[f"votes.{username}"] = 1
+
+    existing_docs = query_collection.find({"chat_id": object_id}, fields).sort(
+        "created_utc", 1
+    )
+
+    if existing_docs:
+        formatted_docs = []
+        messages = []
+        for doc in existing_docs:
+            formatted_docs.append(_format_query_doc(doc, username))
+            messages.extend(
+                [
+                    Message(content=doc["query"], role=Role.USER),
+                    Message(content=doc["response"], role=Role.ASSISTANT),
+                ]
+            )
+        return {
+            "messages": messages,
+            "queries": formatted_docs,
+        }
+
+    # return None to allow the service to generate a 404 response (i.e. for better separation of concerns)
+    return None
 
 
 def get_query_by_id(db_conn: MongoDBConnection, query_id: str, username: Optional[str]):
@@ -84,6 +131,9 @@ def _format_query_doc(query_doc, username: str):
     # extract the vote for the specific username
     # if the user has not voted, the default vote is 0
     user_vote = query_doc.get("votes", {}).get(username, 0)
+
+    doc_username = query_doc.pop("username", None)
+    query_doc["is_chat_owner"] = doc_username == username
 
     # add the user's vote to the returned document
     query_doc["user_vote"] = user_vote
