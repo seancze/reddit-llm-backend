@@ -19,7 +19,7 @@ def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
 
     completion = openai.beta.chat.completions.parse(
         # NOTE: model is hardcoded because this is the only function that uses this model
-        model="gpt-4o-2024-08-06",
+        model="gpt-4.1-2025-04-14",
         messages=messages,
         response_format=MongoPipelineResponse,
         temperature=0.2,
