@@ -2,7 +2,7 @@
 description: "Mongo pipeline evaluation"
 
 prompts:
-  - ""
+  - "PLACEHOLDER"
 
 providers:
   - "python:test.py"
