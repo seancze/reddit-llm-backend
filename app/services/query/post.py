@@ -35,15 +35,18 @@ def query_post(
     MAX_TRIES = 3
     while num_tries < MAX_TRIES:
         try:
-            thread_metadata = None
+            all_similar_threads = []
             mongo_pipeline_obj = get_mongo_pipeline(query)
             query_doc.update(mongo_pipeline_obj)
-
             # if the pipeline is None, it means that we are not supposed to query the database
             # hence, we set vector search to True
-            use_vector_search = mongo_pipeline_obj.pipeline is None
+            use_vector_search = len(mongo_pipeline_obj.pipeline) == 0
             query[-1].content = (
                 f"""User Query:\n{query[-1].content}\n\nData from database:"""
+            )
+
+            print(
+                f"pipeline: {mongo_pipeline_obj.pipeline} reason: {mongo_pipeline_obj.reason}"
             )
 
             if mongo_pipeline_obj.pipeline:
@@ -53,31 +56,44 @@ def query_post(
                     mongo_pipeline_obj.pipeline,
                 )
                 # if the data returned is empty we should use vector search
-                if len(mongodb_data) == 0:
-                    use_vector_search = True
+                if len(mongodb_data) > 0:
+                    _, similar_threads = get_thread_metadata_and_top_comments(
+                        db_conn, mongodb_data
+                    )
+                    if len(similar_threads) > 0:
+                        all_similar_threads.extend(similar_threads)
+                    query[-1].content += f"""\n{mongodb_data}"""
                 else:
-                    query[
-                        -1
-                    ].content += f"""\n{mongodb_data}\nDatabase query: {mongo_pipeline_obj.pipeline}"""
+                    # if the data returned is empty we should use vector search
+                    use_vector_search = True
 
+            thread_collection = db_conn.get_collection("thread")
             if use_vector_search:
-                thread_collection = db_conn.get_collection("thread")
-
                 vector_search_result = vector_search(query, thread_collection)
                 # only store the 'id' and 'vector_search_score' field into query_doc
                 query_doc["vector_search_result"] = [
                     {"id": result["id"], "score": result["vector_search_score"]}
                     for result in vector_search_result
                 ]
-                search_result, thread_metadata = get_thread_metadata_and_top_comments(
+                search_result, similar_threads = get_thread_metadata_and_top_comments(
                     db_conn, vector_search_result
                 )
+                if len(similar_threads) > 0:
+                    all_similar_threads.extend(similar_threads)
 
                 query[-1].content += f"""\n{search_result}"""
 
             response = get_llm_response(query)
-            if thread_metadata:
-                response += f"\n\n{thread_metadata}"
+            if len(all_similar_threads) > 0:
+                # remove duplicates and sort by score in descending order
+                all_similar_threads = sorted(
+                    set(all_similar_threads), key=lambda x: x[1], reverse=True
+                )
+                all_similar_threads_formatted = "**Relevant posts**\n"
+                # el = a tuple of (formatted similar thread (str), score (int))
+                for i, el in enumerate(all_similar_threads):
+                    all_similar_threads_formatted += f"{i+1}. {el[0]}\n"
+                response += f"\n\n{all_similar_threads_formatted}"
             query_with_response = query + [
                 Message(role=Role.ASSISTANT, content=response)
             ]

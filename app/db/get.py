@@ -54,6 +54,7 @@ def get_chat_by_id(db_conn: MongoDBConnection, chat_id: str, username: Optional[
 def get_response_from_pipeline(
     db_conn: MongoDBConnection, collection_name: str, pipeline: list
 ):
+    print(f"[INFO] Getting MongoDB pipeline response...")
     collection = db_conn.get_collection(collection_name)
 
     if collection_name == "thread":
@@ -90,24 +91,27 @@ def get_thread_metadata_and_top_comments(
     db_conn: MongoDBConnection, vector_search_result: list
 ):
     search_result = ""
-    threads = "**Similar posts**\n"
+    similar_threads = []
 
     for i, result in enumerate(vector_search_result):
-        title = result.get("title", "N/A")
-        url = f"https://reddit.com{result.get('permalink', 'N/A')}"
-        score = result.get("score", "N/A")
+        title = result.get("title")
+        url = f"https://reddit.com{result.get('permalink')}"
+        score = result.get("score")
+        # skip if any of the fields above are None
+        if not (title and score and url):
+            continue
         selftext = result.get("selftext", "N/A")
         selftext_ls = selftext.split()
         # only get top 100 words
         if len(selftext_ls) > 100:
             selftext = " ".join(selftext_ls[:100]) + "..."
 
-        threads += f"{i+1}. [{title}]({url}) (Upvotes: {score})\n"
+        similar_threads.append((f"[{title}]({url}) (Upvotes: {score})", score))
 
         search_result += f"""Thread {i+1} (Score: {score})\nTitle: {title}\nURL: {url}\nBody: {selftext}\n\n\n"""
         # print(f"search_result: {search_result}")
 
-    return search_result, threads
+    return search_result, similar_threads
 
 
 def _format_query_doc(query_doc, username: str):
