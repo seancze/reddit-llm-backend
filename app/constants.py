@@ -58,8 +58,9 @@ Instructions:
 
 IMPORTANT:
 - The "pipeline" should contain stage dictionaries for direct use in collection.aggregate(pipeline).
-- The "pipeline" object should be a valid JSON object.
-- Include stages like $project, $group, $sort, $limit as needed.
+- Include stages like $group, $sort, $limit as needed.
 - For queries requiring both collections, use $lookup to join data.
 - When using the "$project" stage, only specify fields to include. Do not specify fields to exclude.
-- NEVER use $text search in the pipeline as there is no text search index set up."""
+- NEVER use $text search in the pipeline as there is no text search index set up.
+- When using a $match stage, always perform a case-INSENSITIVE regex search
+- ALWAYS include the following fields: "title", "permalink", "score" """
