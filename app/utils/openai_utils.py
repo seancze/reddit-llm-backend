@@ -3,6 +3,7 @@ import os
 import app.constants as constants
 import json
 import re
+import sympy
 from dotenv import load_dotenv
 from app.schemas.mongo_pipeline_response import MongoPipelineResponse
 from app.schemas.message import Message
@@ -17,8 +18,7 @@ def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
     ] + user_query
 
     completion = openai.beta.chat.completions.parse(
-        # NOTE: hardcode the model for now as this is the only gpt4o model that supports structured outputs
-        # see here for more information: https://platform.openai.com/docs/guides/structured-outputs/introduction
+        # NOTE: model is hardcoded because this is the only function that uses this model
         model="gpt-4o-2024-08-06",
         messages=messages,
         response_format=MongoPipelineResponse,
@@ -30,10 +30,13 @@ def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
         if parsed_obj.pipeline is not None:
             # clean each string to ensure that it is a valid JSON string
             # convert each JSON string into a dictionary
-            parsed_obj.pipeline = [
-                _clean_and_parse_json_str(stage) for stage in parsed_obj.pipeline
-            ]
-
+            temp = []
+            for stage in parsed_obj.pipeline:
+                # if starts with '#', it is a comment and should be ignored
+                if stage.startswith("#"):
+                    continue
+                temp.append(_clean_and_parse_json_str(stage))
+            parsed_obj.pipeline = temp
         return parsed_obj
     except Exception as e:
         print(f"Erroneous pipeline: {parsed_obj}")
@@ -103,7 +106,64 @@ def _format_braces(json_string):
     return corrected_string
 
 
+def _add_double_quotes_to_json_properties(json_string):
+    # Regular expression to find property names without double quotes
+    # Looks for: word characters followed by colon, but not already in quotes
+    pattern = r'(?<!")(\b[a-zA-Z_$][a-zA-Z0-9_$]*\b)(?=\s*:)'
+
+    # Replace with the same property name but enclosed in double quotes
+    quoted_json_string = re.sub(pattern, r'"\1"', json_string)
+
+    return quoted_json_string
+
+
+def _escape_single_backslash(json_string):
+    """
+    Escapes only single backslashes in a string, leaving already escaped backslashes untouched.
+
+    Args:
+        text (str): The input string to process
+
+    Returns:
+        str: String with single backslashes escaped
+    """
+    # Process the string character by character with regex
+    # (?<!\\)\\(?!\\) matches a backslash that's:
+    # 1. Not preceded by another backslash (negative lookbehind)
+    # 2. Not followed by another backslash (negative lookahead)
+    return re.sub(r"(?<!\\)\\(?!\\)", r"\\\\", json_string)
+
+
+def _evaluate_math(match):
+    expr = match.group(1)
+    try:
+        result = float(sympy.sympify(expr).evalf())
+        # Convert to int if result is a whole number
+        return str(int(result) if result.is_integer() else result)
+    except Exception:
+        return expr
+
+
+def _parse_json_with_math_expressions(json_string):
+    """
+    Parse a JSON string containing various mathematical expressions.
+    Handles operations like +, -, *, /, **, parentheses, and more.
+    """
+
+    # Pattern for mathematical expressions
+    pattern = r"(\d+(?:\s*[\+\-\*\/\^]\s*\d+)+|\(\s*[\d\+\-\*\/\s]+\))"
+    processed_string = re.sub(pattern, _evaluate_math, json_string)
+
+    return processed_string
+
+
 def _clean_and_parse_json_str(json_string):
+    # Clean the string by removing any leading/trailing whitespace
+    json_string = json_string.strip()
+
+    # Replace escaped newlines with actual newlines if they exist
+    json_string = json_string.replace("\\n", "\n")
+
     # remove trailing commas
     json_string = re.sub(r",\s*}", "}", json_string)
     json_string = re.sub(r",\s*\]", "]", json_string)
@@ -113,6 +173,14 @@ def _clean_and_parse_json_str(json_string):
 
     # ensure opening and closing braces match
     json_string = _format_braces(json_string)
+
+    json_string = _add_double_quotes_to_json_properties(json_string)
+
+    json_string = _escape_single_backslash(json_string)
+
+    # evaluates mathematical expressions in JSON string
+    # e.g. {"$subtract": [ "$$NOW", 7 * 24 * 60 * 60 * 1000 ]} -> {"$subtract": [ "$$NOW", 604800000 ]}
+    json_string = _parse_json_with_math_expressions(json_string)
 
     # try to parse the JSON
     # we want the error to be raised here if the JSON is invalid
