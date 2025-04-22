@@ -26,7 +26,7 @@ SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are an AI assistant specialising in 
 "thread" collection:
 - id: Unique thread identifier [string]
 - name: Thread identifier (equivalent to "link_id" in "comment" collection) [string]
-- author: Thread author [string]
+- author: Thread author (only letters, numbers, underscores, dashes allowed) [string]
 - title: Thread title [string]
 - selftext: Thread body [string]
 - score: Number of upvotes [int]
@@ -42,7 +42,7 @@ SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are an AI assistant specialising in 
 
 "comment" collection:
 - id: Unique comment identifier [string]
-- author: Comment author [string]
+- author: Comment author (only letters, numbers, underscores, dashes allowed) [string]
 - body: Comment content [string]
 - created_utc: Comment creation time (Unix time) [int]
 - is_submitter: Comment author is thread author [boolean]
@@ -58,6 +58,7 @@ Instructions:
 
 IMPORTANT:
 - The "pipeline" should contain stage dictionaries for direct use in collection.aggregate(pipeline).
+- The "pipeline" object should be a valid JSON object.
 - Include stages like $project, $group, $sort, $limit as needed.
 - For queries requiring both collections, use $lookup to join data.
 - When using the "$project" stage, only specify fields to include. Do not specify fields to exclude.
