@@ -1,4 +1,5 @@
 import time
+from copy import deepcopy
 from bson import ObjectId
 from typing import Optional
 from app.utils.vector_search import vector_search
@@ -29,6 +30,7 @@ def query_post(
         "updated_utc": int(time.time()),
         "query": query[-1].content,
     }
+    original_user_query = deepcopy(query)
 
     is_error = False
     num_tries = 0
@@ -36,11 +38,8 @@ def query_post(
     while num_tries < MAX_TRIES:
         try:
             all_similar_threads = []
-            mongo_pipeline_obj = get_mongo_pipeline(query)
+            mongo_pipeline_obj = get_mongo_pipeline(original_user_query)
             query_doc.update(mongo_pipeline_obj)
-            # if the pipeline is None, it means that we are not supposed to query the database
-            # hence, we set vector search to True
-            use_vector_search = len(mongo_pipeline_obj.pipeline) == 0
             query[-1].content = (
                 f"""User Query:\n{query[-1].content}\n\nData from database:"""
             )
@@ -63,25 +62,26 @@ def query_post(
                     if len(similar_threads) > 0:
                         all_similar_threads.extend(similar_threads)
                     query[-1].content += f"""\n{mongodb_data}"""
-                else:
-                    # if the data returned is empty we should use vector search
-                    use_vector_search = True
 
             thread_collection = db_conn.get_collection("thread")
-            if use_vector_search:
-                vector_search_result = vector_search(query, thread_collection)
-                # only store the 'id' and 'vector_search_score' field into query_doc
-                query_doc["vector_search_result"] = [
-                    {"id": result["id"], "score": result["vector_search_score"]}
-                    for result in vector_search_result
-                ]
-                search_result, similar_threads = get_thread_metadata_and_top_comments(
-                    db_conn, vector_search_result
-                )
-                if len(similar_threads) > 0:
-                    all_similar_threads.extend(similar_threads)
 
-                query[-1].content += f"""\n{search_result}"""
+            vector_search_result = vector_search(original_user_query, thread_collection)
+            # only store the 'id' and 'vector_search_score' field into query_doc
+            query_doc["vector_search_result"] = [
+                {"id": result["id"], "score": result["vector_search_score"]}
+                for result in vector_search_result
+            ]
+            search_result, similar_threads = get_thread_metadata_and_top_comments(
+                db_conn, vector_search_result
+            )
+            if len(similar_threads) > 0:
+                print(
+                    f"Length of vector search result: {len(vector_search_result), len(similar_threads)}"
+                )
+                all_similar_threads.extend(similar_threads)
+                # all_similar_threads = similar_threads
+
+            query[-1].content += f"""\n{search_result}"""
 
             response = get_llm_response(query)
             if len(all_similar_threads) > 0:
