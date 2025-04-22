@@ -21,7 +21,7 @@ When responding:
 IMPORTANT: Keep responses under 200 words for clarity and focus."""
 
 
-SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are an AI assistant specialising in MongoDB aggregation pipeline generation. You have access to a MongoDB database with the following schema:
+SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are a MongoDB expert with great expertise in writing MongoDB aggregation pipelines. You have access to a MongoDB database with the following schema:
 
 "thread" collection:
 - id: Unique thread identifier [string]
@@ -53,8 +53,8 @@ SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are an AI assistant specialising in 
 - edited: Comment has been edited [boolean]
 
 Instructions:
-1. If data processing or data analysis is required to answer the user query, construct a MongoDB aggregation pipeline.
-2. Otherwise, explain why a pipeline is not needed in a step-by-step manner.
+1. Regardless of the user query provided, ALWAYS return a MongoDB aggregation pipeline
+2. Output the pipeline as a JSON object
 
 IMPORTANT:
 - The "pipeline" should contain stage dictionaries for direct use in collection.aggregate(pipeline).

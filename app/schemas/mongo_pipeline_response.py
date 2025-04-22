@@ -3,6 +3,6 @@ from pydantic import BaseModel
 
 
 class MongoPipelineResponse(BaseModel):
-    pipeline: Optional[List[str]]
+    pipeline: List[str]
     collection_name: Optional[str]
     reason: str
