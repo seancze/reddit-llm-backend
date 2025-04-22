@@ -24,7 +24,7 @@ def vector_search(user_query: list[Message], collection: Collection):
     Returns:
     list: A list of matching documents.
     """
-    print(f"user_query: {user_query}")
+    # print(f"user_query: {user_query}")
     user_query_str = "\n".join([msg.content for msg in user_query])
     # Generate embedding for the user query
     query_embedding = _get_embedding(user_query_str)
@@ -41,6 +41,7 @@ def vector_search(user_query: list[Message], collection: Collection):
                 "path": "selftext_embedding",
                 "numCandidates": 150,  # Number of candidate matches to consider
                 "limit": 3,
+                # "filter": {"score": {"$gt": 500}},
             }
         },
         {
@@ -51,6 +52,7 @@ def vector_search(user_query: list[Message], collection: Collection):
                 "score": 1,
                 "selftext": 1,
                 "permalink": 1,
+                "created_utc": 1,
                 "vector_search_score": {
                     "$meta": "vectorSearchScore"
                 },  # Include the search score
