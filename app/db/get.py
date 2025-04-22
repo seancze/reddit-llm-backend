@@ -89,39 +89,22 @@ def get_response_from_pipeline(
 def get_thread_metadata_and_top_comments(
     db_conn: MongoDBConnection, vector_search_result: list
 ):
-    comment_collection = db_conn.get_collection("comment")
     search_result = ""
     threads = "**Similar posts**\n"
 
     for i, result in enumerate(vector_search_result):
-        thread_id = result.get("id")
-        # for each thread_id, get the top 5 comments from the 'comment' collection based on the score and add them to the search result
-        comments = (
-            comment_collection.find(
-                {
-                    "parent_id": f"t3_{thread_id}"  # we use parent_id to ensure that we only get top-level comments
-                },
-                {"_id": 0, "score": 1, "body": 1},
-            )
-            .sort([("score", -1)])
-            .limit(3)
-        )
-
-        # ensure that the comments are formatted like this: "Comment (Score: {score}): {body} \n"
-        comments_str = " \n".join(
-            [
-                f"Comment (Score: {comment.get('score', 'N/A')}): {comment.get('body', 'N/A')}"
-                for comment in comments
-            ]
-        )
-
         title = result.get("title", "N/A")
         url = f"https://reddit.com{result.get('permalink', 'N/A')}"
         score = result.get("score", "N/A")
+        selftext = result.get("selftext", "N/A")
+        selftext_ls = selftext.split()
+        # only get top 100 words
+        if len(selftext_ls) > 100:
+            selftext = " ".join(selftext_ls[:100]) + "..."
 
         threads += f"{i+1}. [{title}]({url}) (Upvotes: {score})\n"
 
-        search_result += f"""Thread {i+1} (Score: {score})\nTitle: {title}\nURL: {url}\nBody: {result.get('selftext', "N/A")}\n{comments_str}\n\n\n"""
+        search_result += f"""Thread {i+1} (Score: {score})\nTitle: {title}\nURL: {url}\nBody: {selftext}\n\n\n"""
         # print(f"search_result: {search_result}")
 
     return search_result, threads
