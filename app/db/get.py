@@ -102,9 +102,9 @@ def get_thread_metadata_and_top_comments(
             continue
         selftext = result.get("selftext", "N/A")
         selftext_ls = selftext.split()
-        # only get top 100 words
-        if len(selftext_ls) > 100:
-            selftext = " ".join(selftext_ls[:100]) + "..."
+        # only get top 500 words
+        if len(selftext_ls) > 500:
+            selftext = " ".join(selftext_ls[:500]) + "..."
 
         similar_threads.append((f"[{title}]({url}) (Upvotes: {score})", score))
 
