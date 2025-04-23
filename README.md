@@ -50,7 +50,7 @@ npx promptfoo@latest eval -c test/end_to_end/promptfooconfig.yaml --no-cache
 
 **Mongo pipeline**
 ```shell
-npx promptfoo@latest eval -c test/mongo_pipeline/promptfooconfig.yaml --no-cache
+npx promptfoo@latest eval -c test/query_router/promptfooconfig.yaml --no-cache
 ```
 
 **View logs**
