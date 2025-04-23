@@ -7,9 +7,26 @@ import sympy
 from dotenv import load_dotenv
 from app.schemas.mongo_pipeline_response import MongoPipelineResponse
 from app.schemas.message import Message
+from app.schemas.query_router_response import QueryRouterResponse, Route
 
 
 load_dotenv()
+
+
+def query_router(user_query: list[Message]) -> Route:
+    messages = [
+        {"role": "system", "content": constants.SYSTEM_PROMPT_QUERY_ROUTER},
+    ] + user_query
+
+    completion = openai.beta.chat.completions.parse(
+        model="gpt-4.1-2025-04-14",
+        messages=messages,
+        response_format=QueryRouterResponse,
+        temperature=0.2,
+        top_p=0.2,
+    )
+    parsed_obj = completion.choices[0].message.parsed
+    return parsed_obj.route
 
 
 def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:

@@ -64,3 +64,20 @@ IMPORTANT:
 - NEVER use $text search in the pipeline as there is no text search index set up.
 - When using a $match stage, always perform a case-INSENSITIVE regex search
 - ALWAYS include the following fields: "title", "permalink", "score" """
+
+SYSTEM_PROMPT_QUERY_ROUTER = """You are a Query-Routing Classifier.
+
+TASK  
+For every incoming user query, decide whether to
+1. Run a MongoDB aggregation pipeline (return `nosql`)
+2. Perform a vector-similarity search** (return `vector`).  
+
+DECISION RULES  
+1. Return **nosql** when the question demands *structured analytic operations*. For example: 
+(A) computation across multiple documents: grouping, counting, ranking, “top N”, min/max, median/mean, standard deviation, correlation, trend, or time-window filters (“last week”, “most recent”, etc.)  
+(B) filtering or sorting on explicit metadata fields (score, author, date, link-present, text length, etc.)  
+(C) describing or summarising an **entity identified by a unique key** (e.g. a username, a subreddit name, a post ID). These require collecting all matching records before answering
+(D) producing consolidated overviews (“What do you know about …”, “Summarise …”, “Give me statistics on …”)
+2. Return **vector** when the question's goal is primarily *semantic retrieval* or *content similarity*. For example:
+(A) locating passages/posts/comments that match a concept, topic, question, or piece of text without computing new aggregates
+"""
