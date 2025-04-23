@@ -9,7 +9,7 @@ parent_dir = os.path.dirname(current_dir)
 grandparent_dir = os.path.dirname(parent_dir)
 # Add the grandparent directory to sys.path
 sys.path.append(grandparent_dir)
-from app.utils.openai_utils import get_mongo_pipeline
+from app.utils.openai_utils import query_router
 from app.db.conn import MongoDBConnection
 from app.schemas.message import Message
 from app.schemas.role import Role
@@ -17,6 +17,7 @@ from app.schemas.role import Role
 
 def call_api(prompt, options, context):
     enable_test = context["vars"]["enable_test"]
+    print(f"OpenAI Model: {os.environ.get("OPENAI_MODEL")}")
     if enable_test.upper() == "FALSE":
         return {
             "output": {
@@ -29,13 +30,11 @@ def call_api(prompt, options, context):
         user_query = context["vars"]["query"]
         messages = [Message(content=user_query, role=Role.USER)]
 
-        pipeline_obj = get_mongo_pipeline(messages)
-        pipeline = pipeline_obj.pipeline
+        route = query_router(messages)
 
         result = {
             "output": {
-                "pipeline": pipeline,
-                "reason": pipeline_obj.reason,
+                "route": route,
             }
         }
 

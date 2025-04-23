@@ -10,14 +10,14 @@ def get_assert(output, context) -> Union[bool, float, Dict[str, Any]]:
             "reason": "Test case is disabled. Set 'enable_test' to 'True' to enable it.",
         }
 
-    is_pipeline_generated = context["vars"]["is_pipeline_generated"].upper() == "TRUE"
-    pipeline = output["pipeline"]
+    expected = context["vars"]["is_pipeline_generated"].upper() == "TRUE"
+    actual = output["route"] == "nosql"
     # ensure that the pipeline is only generated when we expect it to
-    if (pipeline is not None) != is_pipeline_generated:
+    if actual != expected:
         return {
             "pass": False,
             "score": 0,
-            "reason": f"Expected is_pipeline_generated to be {is_pipeline_generated} but pipeline is {pipeline}",
+            "reason": f"Expected is_pipeline_generated to be {expected} but pipeline is {actual}",
         }
 
     return {
