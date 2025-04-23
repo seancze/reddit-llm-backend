@@ -3,7 +3,7 @@ from copy import deepcopy
 from bson import ObjectId
 from typing import Optional
 from app.utils.vector_search import vector_search
-from app.utils.openai_utils import get_mongo_pipeline, get_llm_response
+from app.utils.openai_utils import query_router, get_mongo_pipeline, get_llm_response
 from app.utils.format_utils import normalise_query
 from pymongo.errors import OperationFailure
 from app.db.upsert import insert_query_document
@@ -12,6 +12,7 @@ from app.db.get import get_response_from_pipeline, get_thread_metadata_and_top_c
 from app.schemas.query_post_response import QueryPostResponse
 from app.schemas.message import Message
 from app.schemas.role import Role
+from app.schemas.route import Route
 
 
 def query_post(
@@ -38,50 +39,55 @@ def query_post(
     while num_tries < MAX_TRIES:
         try:
             all_similar_threads = []
-            mongo_pipeline_obj = get_mongo_pipeline(original_user_query)
-            query_doc.update(mongo_pipeline_obj)
-            query[-1].content = (
-                f"""User Query:\n{query[-1].content}\n\nData from database:"""
-            )
-
-            print(
-                f"pipeline: {mongo_pipeline_obj.pipeline} reason: {mongo_pipeline_obj.reason}"
-            )
-
-            if mongo_pipeline_obj.pipeline:
-                mongodb_data = get_response_from_pipeline(
-                    db_conn,
-                    mongo_pipeline_obj.collection_name,
-                    mongo_pipeline_obj.pipeline,
+            route = query_router(original_user_query)
+            print(f"[INFO] Route: {route}")
+            use_vector_search = route is Route.VECTOR
+            if not use_vector_search:
+                mongo_pipeline_obj = get_mongo_pipeline(original_user_query)
+                query_doc.update(mongo_pipeline_obj)
+                query[-1].content = (
+                    f"""User Query:\n{query[-1].content}\n\nData from database:"""
                 )
-                # if the data returned is empty we should use vector search
-                if len(mongodb_data) > 0:
-                    _, similar_threads = get_thread_metadata_and_top_comments(
-                        db_conn, mongodb_data
-                    )
-                    if len(similar_threads) > 0:
-                        all_similar_threads.extend(similar_threads)
-                    query[-1].content += f"""\n{mongodb_data}"""
 
-            thread_collection = db_conn.get_collection("thread")
-
-            vector_search_result = vector_search(original_user_query, thread_collection)
-            # only store the 'id' and 'vector_search_score' field into query_doc
-            query_doc["vector_search_result"] = [
-                {"id": result["id"], "score": result["vector_search_score"]}
-                for result in vector_search_result
-            ]
-            search_result, similar_threads = get_thread_metadata_and_top_comments(
-                db_conn, vector_search_result
-            )
-            if len(similar_threads) > 0:
                 print(
-                    f"Length of vector search result: {len(vector_search_result), len(similar_threads)}"
+                    f"pipeline: {mongo_pipeline_obj.pipeline} reason: {mongo_pipeline_obj.reason}"
                 )
-                all_similar_threads.extend(similar_threads)
-                # all_similar_threads = similar_threads
 
-            query[-1].content += f"""\n{search_result}"""
+                if mongo_pipeline_obj.pipeline:
+                    mongodb_data = get_response_from_pipeline(
+                        db_conn,
+                        mongo_pipeline_obj.collection_name,
+                        mongo_pipeline_obj.pipeline,
+                    )
+                    if len(mongodb_data) > 0:
+                        _, similar_threads = get_thread_metadata_and_top_comments(
+                            db_conn, mongodb_data
+                        )
+                        if len(similar_threads) > 0:
+                            all_similar_threads.extend(similar_threads)
+                        query[-1].content += f"""\n{mongodb_data}"""
+                    else:
+                        # if the data returned is empty, try doing a vector search
+                        use_vector_search = True
+
+            if use_vector_search:
+                thread_collection = db_conn.get_collection("thread")
+
+                vector_search_result = vector_search(
+                    original_user_query, thread_collection
+                )
+                # only store the 'id' and 'vector_search_score' field into query_doc
+                query_doc["vector_search_result"] = [
+                    {"id": result["id"], "score": result["vector_search_score"]}
+                    for result in vector_search_result
+                ]
+                search_result, similar_threads = get_thread_metadata_and_top_comments(
+                    db_conn, vector_search_result
+                )
+                if len(similar_threads) > 0:
+                    all_similar_threads.extend(similar_threads)
+
+                query[-1].content += f"""\n{search_result}"""
 
             response = get_llm_response(query)
             if len(all_similar_threads) > 0:
