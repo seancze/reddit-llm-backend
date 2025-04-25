@@ -61,6 +61,9 @@ def get_response_from_pipeline(
         # add a $project stage to exclude selftext_embedding at the beginning of the pipeline
         pipeline.insert(0, {"$project": {"selftext_embedding": 0, "_id": 0}})
 
+    # TODO: make subreddit a parameter
+    pipeline.insert(0, {"$match": {"subreddit": "sgexams"}})
+
     # check if $limit stage exists in the pipeline
     limit_index = next(
         (i for i, stage in enumerate(pipeline) if "$limit" in stage), None
