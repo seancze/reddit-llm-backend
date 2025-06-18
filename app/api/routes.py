@@ -6,12 +6,14 @@ from app.schemas.query_request import QueryRequest
 from app.schemas.query_get_response import QueryGetResponse
 from app.schemas.query_post_response import QueryPostResponse
 from app.schemas.vote_request import VoteRequest
+from app.schemas.chat_list_response import ChatListResponse
 from app.services.query.post import query_post
 from app.services.chat.get import chat_get
 from app.services.vote.put import vote_put
+from app.services.chat.list import chat_list
 from app.db.conn import get_db_client
 from app.utils.auth_utils import verify_token, verify_token_or_anonymous
-from typing import Optional
+from typing import Optional, List
 
 
 router = APIRouter()
@@ -69,6 +71,21 @@ async def api_get_chat(
 ):
     try:
         response = await run_in_threadpool(chat_get, db_conn, chat_id, username)
+        return response
+    except HTTPException as e:
+        raise e
+    except:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500)
+
+
+@router.get("/chat", response_model=List[ChatListResponse])
+async def api_list_chat(
+    db_conn=Depends(get_db_client),
+    username: str = Depends(verify_token),
+):
+    try:
+        response = await run_in_threadpool(chat_list, db_conn, username)
         return response
     except HTTPException as e:
         raise e

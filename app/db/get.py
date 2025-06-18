@@ -1,9 +1,38 @@
 from app.db.conn import MongoDBConnection
 from app.utils.format_utils import get_human_readable_datetime
 from bson import ObjectId
-from typing import Optional
+from typing import Optional, List
 from app.schemas.role import Role
 from app.schemas.message import Message
+from app.schemas.chat_list_response import ChatListResponse
+
+
+def get_user_chats(db_conn: MongoDBConnection, username: str) -> List[ChatListResponse]:
+    """
+    Return the first query document of each unique chat made by the given user
+    """
+    query_collection = db_conn.get_collection("query")
+
+    pipeline = [
+        # find all chats that are created by the user and NOT deleted
+        {"$match": {"username": username, "is_deleted": {"$ne": True}}},
+        # this sort ensures that $first in the stage below retrieves the earliest query of each chat
+        {"$sort": {"created_utc": 1}},
+        {
+            "$group": {
+                "_id": "$chat_id",
+                "query": {"$first": "$query"},
+                "created_utc": {"$first": "$created_utc"},
+            }
+        },
+        {"$project": {"_id": 0, "chat_id": "$_id", "query": 1, "created_utc": 1}},
+        # this sort ensures that the list of chats retrieved are sorted in descending order
+        {"$sort": {"created_utc": -1}},
+    ]
+
+    first_queries = list(query_collection.aggregate(pipeline))
+
+    return first_queries
 
 
 def get_chat_by_id(db_conn: MongoDBConnection, chat_id: str, username: Optional[str]):
