@@ -1,6 +1,7 @@
 import time
 from app.db.conn import MongoDBConnection
 from bson import ObjectId
+from typing import Optional
 
 
 def insert_query_document(db_conn: MongoDBConnection, query_doc: dict, username: str):
@@ -39,3 +40,21 @@ def update_query_count(db_conn: MongoDBConnection, query_id: str):
     result = query_collection.update_one({"_id": ObjectId(query_id)}, update_data)
 
     return result
+
+
+def delete_chat_by_id(db_conn: MongoDBConnection, chat_id: str) -> Optional[int]:
+    query_collection = db_conn.get_collection("query")
+
+    try:
+        object_id = ObjectId(chat_id)
+    except Exception as e:
+        print(f"[WARNING] Invalid chat_id in delete_chat_by_id(): {e}")
+        # invalid id
+        return None
+
+    result = query_collection.update_many(
+        {"chat_id": object_id}, {"$set": {"is_deleted": True}}
+    )
+    # result.modified_count is how many docs got the new field or had it flipped to True
+    # in other words, the number of queries that got deleted
+    return result.modified_count
