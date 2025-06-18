@@ -90,6 +90,9 @@ def get_response_from_pipeline(
         # add a $project stage to exclude selftext_embedding at the beginning of the pipeline
         pipeline.insert(0, {"$project": {"selftext_embedding": 0, "_id": 0}})
 
+    # TODO: make subreddit a parameter
+    pipeline.insert(0, {"$match": {"subreddit": "sgexams"}})
+
     # check if $limit stage exists in the pipeline
     limit_index = next(
         (i for i, stage in enumerate(pipeline) if "$limit" in stage), None
@@ -127,8 +130,16 @@ def get_thread_metadata_and_top_comments(
         url = f"https://reddit.com{result.get('permalink')}"
         score = result.get("score")
         # skip if any of the fields above are None
-        if not (title and score and url):
+        if not (score and url):
             continue
+        # if title is None, use part of the url as the title
+        # NOTE: we allow title to be None because this field does not exist in the comment schema
+        if not title:
+            # get the 2nd last part of the url
+            # e.g. https://reddit.com/r/sgexams/comments/123456/placeholder_url_slug_that_we_will_be_using/123456/
+            url_formatted = url.split("/")[-3]
+            # e.g. title = "Placeholder Url Slug That We Will Be Using"
+            title = url_formatted.replace("_", " ").title()
         selftext = result.get("selftext", "N/A")
         selftext_ls = selftext.split()
         # only get top 500 words
