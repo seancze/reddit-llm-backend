@@ -11,7 +11,7 @@ def chat_get(
 ) -> QueryGetResponse:
     chat_obj = get_chat_by_id(db_conn, chat_id, username)
     if chat_obj is None:
-        raise HTTPException(status_code=404, detail="Query not found")
+        raise HTTPException(status_code=404, detail="Chat does not exist")
 
     last_query = chat_obj["queries"][-1]
     update_query_count(db_conn, last_query["_id"])
