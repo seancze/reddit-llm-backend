@@ -1,5 +1,5 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Depends, Path, Body
+from fastapi import APIRouter, HTTPException, Depends, Path, Body, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from app.schemas.query_request import QueryRequest
@@ -84,9 +84,10 @@ async def api_get_chat(
 async def api_list_chat(
     db_conn=Depends(get_db_client),
     username: str = Depends(verify_token),
+    page: int = Query(0, ge=0),
 ):
     try:
-        response = await run_in_threadpool(chat_list, db_conn, username)
+        response = await run_in_threadpool(chat_list, db_conn, username, page)
         return response
     except HTTPException as e:
         raise e

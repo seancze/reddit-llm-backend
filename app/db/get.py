@@ -5,13 +5,20 @@ from typing import Optional, List
 from app.schemas.role import Role
 from app.schemas.message import Message
 from app.schemas.chat_list_response import ChatListResponse
+from pymongo.collection import Collection
 
 
-def get_user_chats(db_conn: MongoDBConnection, username: str) -> List[ChatListResponse]:
+def get_user_chats(
+    db_conn: MongoDBConnection,
+    username: str,
+    page: int = 0,
+) -> List[ChatListResponse]:
     """
-    Return the first query document of each unique chat made by the given user
+    Return the first query document of each unique chat by this user.
+    Paginates the results, returning at most 25 chats per page.
     """
-    query_collection = db_conn.get_collection("query")
+    query_collection: Collection = db_conn.get_collection("query")
+    LIMIT = 25
 
     pipeline = [
         # find all chats that are created by the user and NOT deleted
@@ -28,6 +35,8 @@ def get_user_chats(db_conn: MongoDBConnection, username: str) -> List[ChatListRe
         {"$project": {"_id": 0, "chat_id": "$_id", "query": 1, "created_utc": 1}},
         # this sort ensures that the list of chats retrieved are sorted in descending order
         {"$sort": {"created_utc": -1}},
+        {"$skip": page * LIMIT},
+        {"$limit": LIMIT},
     ]
 
     first_queries = list(query_collection.aggregate(pipeline))
