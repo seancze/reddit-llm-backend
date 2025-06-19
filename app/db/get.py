@@ -56,8 +56,17 @@ def get_chat_by_id(db_conn: MongoDBConnection, chat_id: str, username: Optional[
     if username is not None:
         fields[f"votes.{username}"] = 1
 
-    existing_docs = query_collection.find({"chat_id": object_id}, fields).sort(
-        "created_utc", 1
+    existing_docs = list(
+        query_collection.find(
+            {
+                "chat_id": object_id,
+                # this will match documents where
+                # (A) "is_deleted" does not exist
+                # (B) "is_deleted" exists and is False
+                "is_deleted": {"$ne": True},
+            },
+            fields,
+        ).sort("created_utc", 1)
     )
 
     if existing_docs:
