@@ -32,7 +32,7 @@ SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are a MongoDB expert with great expe
 - score: Number of upvotes [int]
 - upvote_ratio: Thread upvote ratio [float]
 - permalink: Thread permalink (append to "https://reddit.com" for full URL) [string]
-- num_comments: Number of comments [int]
+- num_comments: Number of comments/replies [int]
 - created_utc: Thread creation time (Unix time) [int]
 - link_flair_text: Thread category/flair [string]
 - topic: Thread topic [string]
