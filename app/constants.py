@@ -62,7 +62,6 @@ IMPORTANT:
 - For queries requiring both collections, use $lookup to join data.
 - When using the "$project" stage, only specify fields to include. Do not specify fields to exclude.
 - NEVER use $text search in the pipeline as there is no text search index set up.
-- When using a $match stage, always perform a case-INSENSITIVE regex search
 - ALWAYS include the following fields: "permalink", "score" """
 
 SYSTEM_PROMPT_QUERY_ROUTER = """You are a Query-Routing Classifier.

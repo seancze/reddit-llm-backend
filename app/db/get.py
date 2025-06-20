@@ -124,8 +124,10 @@ def get_response_from_pipeline(
         # if $limit doesn't exist, add it to the end of the pipeline
         pipeline.append({"$limit": 10})
 
-    # execute the aggregation pipeline
-    documents = list(collection.aggregate(pipeline))
+    # collation is used to perform case-insensitive matching
+    documents = list(
+        collection.aggregate(pipeline, collation={"locale": "en", "strength": 2})
+    )
     for doc in documents:
         if "created_utc" in doc:
             doc["created_date"] = get_human_readable_datetime(doc["created_utc"])
