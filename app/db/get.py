@@ -124,9 +124,9 @@ def get_response_from_pipeline(
         # if $limit doesn't exist, add it to the end of the pipeline
         pipeline.append({"$limit": 10})
 
-    # collation is used to perform case-insensitive matching
+    # a strength of 1 ignores case and diacritics
     documents = list(
-        collection.aggregate(pipeline, collation={"locale": "en", "strength": 2})
+        collection.aggregate(pipeline, collation={"locale": "en", "strength": 1})
     )
     for doc in documents:
         if "created_utc" in doc:
