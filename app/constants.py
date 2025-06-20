@@ -40,6 +40,7 @@ SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are a MongoDB expert with great expe
 - is_self: Text-only submission [boolean]
 - spoiler: Marked as spoiler [boolean]
 - locked: Comments disabled [boolean]
+- is_requesting_help: Thread author is requesting help [boolean]
 
 "comment" collection:
 - id: Unique comment identifier [string]
