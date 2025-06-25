@@ -35,7 +35,7 @@ SYSTEM_PROMPT_GET_MONGODB_PIPELINE = """You are a MongoDB expert with great expe
 - num_comments: Number of comments/replies [int]
 - created_utc: Thread creation time (Unix time) [int]
 - link_flair_text: Thread category/flair [string]
-- topic: Thread topic [string]
+- topic: Thread topic [enum: Family, Friends, Romance, Finance, Mental Health, Physical Health, School, Internship, Job, Harassment, Others]
 - over_18: Marked as NSFW [boolean]
 - is_self: Text-only submission [boolean]
 - spoiler: Marked as spoiler [boolean]
