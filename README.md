@@ -1,4 +1,4 @@
-# reddit-llm-backend
+# Reddit LLM (Backend)
 
 ## Description
 
