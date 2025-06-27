@@ -168,7 +168,9 @@ def get_thread_metadata_and_top_comments(
 
         similar_threads.append((f"[{title}]({url}) (Upvotes: {score})", score))
 
-        search_result += f"""Thread {i+1} (Score: {score})\nTitle: {title}\nURL: {url}\nBody: {selftext}\n\n\n"""
+        search_result += (
+            f"""(Score: {score}) Title: {title}\nURL: {url}\nBody: {selftext}\n\n\n"""
+        )
         # print(f"search_result: {search_result}")
 
     return search_result, similar_threads
