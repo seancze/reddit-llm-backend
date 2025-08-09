@@ -19,11 +19,9 @@ def query_router(user_query: list[Message]) -> Route:
     ] + user_query
 
     completion = openai.beta.chat.completions.parse(
-        model="gpt-5",
+        model=os.environ.get("OPENAI_MODEL_STANDARD"),
         messages=messages,
         response_format=QueryRouterResponse,
-        temperature=0.2,
-        top_p=0.2,
     )
     parsed_obj = completion.choices[0].message.parsed
     return parsed_obj.route
@@ -35,11 +33,9 @@ def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
     ] + user_query
 
     completion = openai.beta.chat.completions.parse(
-        model="gpt-5",
+        model=os.environ.get("OPENAI_MODEL_STANDARD"),
         messages=messages,
         response_format=MongoPipelineResponse,
-        temperature=0.2,
-        top_p=0.2,
     )
     parsed_obj = completion.choices[0].message.parsed
     try:
@@ -64,7 +60,7 @@ def get_llm_response(prompt: list[Message]):
         {"role": "system", "content": constants.SYSTEM_PROMPT},
     ] + prompt
     completion = openai.chat.completions.create(
-        model=os.environ.get("OPENAI_MODEL"), messages=messages
+        model=os.environ.get("OPENAI_MODEL_MINI"), messages=messages
     )
 
     return completion.choices[0].message.content

@@ -17,7 +17,6 @@ from app.schemas.role import Role
 
 def call_api(prompt, options, context):
     enable_test = context["vars"]["enable_test"]
-    print(f"OpenAI Model: {os.environ.get("OPENAI_MODEL")}")
     if enable_test.upper() == "FALSE":
         return {
             "output": {
