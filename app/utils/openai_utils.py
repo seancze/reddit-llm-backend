@@ -19,7 +19,7 @@ def query_router(user_query: list[Message]) -> Route:
     ] + user_query
 
     completion = openai.beta.chat.completions.parse(
-        model="gpt-4.1-2025-04-14",
+        model="gpt-5",
         messages=messages,
         response_format=QueryRouterResponse,
         temperature=0.2,
@@ -35,8 +35,7 @@ def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
     ] + user_query
 
     completion = openai.beta.chat.completions.parse(
-        # NOTE: model is hardcoded because this is the only function that uses this model
-        model="gpt-4.1-2025-04-14",
+        model="gpt-5",
         messages=messages,
         response_format=MongoPipelineResponse,
         temperature=0.2,
