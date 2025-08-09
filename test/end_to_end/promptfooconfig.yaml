@@ -2,7 +2,7 @@
 description: "End-to-end evaluation"
 
 prompts:
-  - ""
+  - "PLACEHOLDER"
 
 providers:
   - "python:test.py"
