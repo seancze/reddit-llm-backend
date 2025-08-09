@@ -22,6 +22,8 @@ def query_router(user_query: list[Message]) -> Route:
         model=os.environ.get("OPENAI_MODEL_STANDARD"),
         messages=messages,
         response_format=QueryRouterResponse,
+        temperature=0.2,
+        top_p=0.2,
     )
     parsed_obj = completion.choices[0].message.parsed
     return parsed_obj.route
@@ -36,6 +38,8 @@ def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
         model=os.environ.get("OPENAI_MODEL_STANDARD"),
         messages=messages,
         response_format=MongoPipelineResponse,
+        temperature=0.2,
+        top_p=0.2,
     )
     parsed_obj = completion.choices[0].message.parsed
     try:
