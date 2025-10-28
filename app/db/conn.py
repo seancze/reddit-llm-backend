@@ -15,8 +15,9 @@ class MongoDBConnection:
         if cls._instance is None:
             cls._instance = super(MongoDBConnection, cls).__new__(cls)
             uri = os.environ.get("MONGODB_URI")
+            mongo_db_name = os.environ.get("MONGO_DB_NAME")
             cls._instance.client = MongoClient(uri, maxPoolSize=10, minPoolSize=5)
-            cls._instance.db = cls._instance.client["reddit_db"]
+            cls._instance.db = cls._instance.client[mongo_db_name]
             print(f"MongoDB connection created.")
         return cls._instance
 

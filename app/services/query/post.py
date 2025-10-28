@@ -1,9 +1,10 @@
 import time
+import asyncio
 from copy import deepcopy
 from bson import ObjectId
 from typing import Optional
 from app.utils.vector_search import vector_search
-from app.utils.openai_utils import query_router, get_mongo_pipeline, get_llm_response
+from app.utils.openai_utils import query_router, get_llm_response
 from app.utils.format_utils import normalise_query
 from pymongo.errors import OperationFailure
 from app.db.upsert import insert_query_document
@@ -13,6 +14,7 @@ from app.schemas.query_post_response import QueryPostResponse
 from app.schemas.message import Message
 from app.schemas.role import Role
 from app.schemas.route import Route
+from app.services.query.mcp import query_mcp
 
 
 def query_post(
@@ -43,21 +45,32 @@ def query_post(
             print(f"[INFO] Route: {route}")
             use_vector_search = route is Route.VECTOR
             if not use_vector_search:
-                mongo_pipeline_obj = get_mongo_pipeline(original_user_query)
-                query_doc.update(mongo_pipeline_obj)
+                # Use MCP to query MongoDB
+                mcp_result = asyncio.run(query_mcp(original_user_query))
+
+                # Extract pipeline information for query_doc
+                if mcp_result.get("collection_name"):
+                    query_doc["collection_name"] = mcp_result["collection_name"]
+                if mcp_result.get("pipeline"):
+                    query_doc["pipeline"] = mcp_result["pipeline"]
+                if mcp_result.get("reason"):
+                    query_doc["reason"] = mcp_result["reason"]
+
+                # Update query content for LLM
                 query[-1].content = (
                     f"""User Query:\n{query[-1].content}\n\nData from database:"""
                 )
 
                 print(
-                    f"pipeline: {mongo_pipeline_obj.pipeline} reason: {mongo_pipeline_obj.reason}"
+                    f"pipeline: {mcp_result.get('pipeline')} reason: {mcp_result.get('reason')}"
                 )
 
-                if mongo_pipeline_obj.pipeline:
+                # If MCP returned a pipeline, execute it to get similar threads
+                if mcp_result.get("pipeline") and mcp_result.get("collection_name"):
                     mongodb_data = get_response_from_pipeline(
                         db_conn,
-                        mongo_pipeline_obj.collection_name,
-                        mongo_pipeline_obj.pipeline,
+                        mcp_result["collection_name"],
+                        mcp_result["pipeline"],
                     )
                     if len(mongodb_data) > 0:
                         _, similar_threads = get_thread_metadata_and_top_comments(
@@ -66,11 +79,10 @@ def query_post(
                         if len(similar_threads) > 0:
                             all_similar_threads.extend(similar_threads)
                         query[-1].content += f"""\n{mongodb_data}"""
-                    else:
-                        # if the data returned is empty, try doing a vector search
-                        use_vector_search = True
 
-            if use_vector_search:
+                # Use the MCP response as the LLM response
+                response = mcp_result.get("response", "No response generated")
+            else:
                 thread_collection = db_conn.get_collection("thread")
 
                 vector_search_result = vector_search(
@@ -89,7 +101,10 @@ def query_post(
 
                 query[-1].content += f"""\n{search_result}"""
 
-            response = get_llm_response(query)
+                # For vector search, use traditional LLM response
+                response = get_llm_response(query)
+
+            # Add similar threads to response if available
             if len(all_similar_threads) > 0:
                 # remove duplicates and sort by score in descending order
                 all_similar_threads = sorted(
