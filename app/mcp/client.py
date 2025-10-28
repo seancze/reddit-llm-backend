@@ -14,8 +14,13 @@ from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from dotenv import load_dotenv
 from app.schemas.message import Message
+import asyncio
 
 load_dotenv()
+
+# Global singleton instance
+_global_client: Optional["MCPMongoClient"] = None
+_client_lock = asyncio.Lock()
 
 
 class MCPMongoClient:
@@ -26,9 +31,16 @@ class MCPMongoClient:
         self.session: Optional[ClientSession] = None
         self._stdio_context = None
         self._session_context = None
+        self._initialized = False
 
     async def __aenter__(self):
         """Start the MCP server and create session."""
+        if not self._initialized:
+            await self._initialize()
+        return self
+
+    async def _initialize(self):
+        """Initialize the MCP server connection."""
         # Get the absolute path to the server script
         server_script = pathlib.Path(__file__).parent / "mongodb_server.py"
 
@@ -48,8 +60,7 @@ class MCPMongoClient:
         self._session_context = ClientSession(read_stream, write_stream)
         self.session = await self._session_context.__aenter__()
         await self.session.initialize()
-
-        return self
+        self._initialized = True
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up session and server."""
@@ -222,3 +233,34 @@ class MCPMongoClient:
 
             traceback.print_exc()
             raise
+
+
+async def get_mcp_client() -> MCPMongoClient:
+    """
+    Get or create the global MCP client instance.
+    This avoids creating a new subprocess for every query.
+    """
+    global _global_client
+
+    async with _client_lock:
+        if _global_client is None:
+            print("[MCP] Creating new global MCP client instance...")
+            _global_client = MCPMongoClient()
+            await _global_client._initialize()
+            print("[MCP] Global MCP client initialized successfully")
+        return _global_client
+
+
+async def cleanup_mcp_client():
+    """
+    Clean up the global MCP client instance.
+    Should be called on application shutdown.
+    """
+    global _global_client
+
+    async with _client_lock:
+        if _global_client is not None:
+            print("[MCP] Cleaning up global MCP client...")
+            await _global_client.__aexit__(None, None, None)
+            _global_client = None
+            print("[MCP] Global MCP client cleaned up")

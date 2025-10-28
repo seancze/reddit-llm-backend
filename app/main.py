@@ -2,7 +2,9 @@ import uvicorn
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.db.conn import lifespan
+from contextlib import asynccontextmanager
+from app.db.conn import lifespan as db_lifespan
+from app.mcp.lifespan import mcp_lifespan
 from app.api.routes import router
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -10,10 +12,18 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 
 
+@asynccontextmanager
+async def combined_lifespan(app: FastAPI):
+    """Combine database and MCP lifespan managers."""
+    async with db_lifespan(app):
+        async with mcp_lifespan(app):
+            yield
+
+
 # create a limiter instance
 limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=combined_lifespan)
 
 # add rate limiter
 app.state.limiter = limiter
