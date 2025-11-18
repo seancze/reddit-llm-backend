@@ -85,6 +85,26 @@ git subtree push --prefix app heroku main
 
 - We can only deploy a subtree because Git LFS is not supported by Heroku
 
+### Force push using Git subtree
+
+**Step 1: Create or update a split branch from the app folder**
+
+```shell
+git subtree split --prefix app -b heroku-deploy
+```
+
+**Step 2: Force push that split branch to the remote heroku on branch main**
+
+```shell
+git push heroku heroku-deploy:main --force
+```
+
+**Step 3: Delete the temporary split branch to keep your local branches clean**
+
+```shell
+git branch -D heroku-deploy
+```
+
 ## Testing
 
 To get started, set your `OPENAI_API_KEY` environment variable, or other required keys for the providers you selected.
