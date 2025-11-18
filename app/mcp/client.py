@@ -148,7 +148,7 @@ class MCPMongoClient:
                 print(f"[MCP] Iteration {iteration}/{max_iterations}")
 
                 response = self.openai_client.chat.completions.create(
-                    model=os.getenv("OPENAI_MODEL_STANDARD", "gpt-4o-mini"),
+                    model=os.getenv("OPENAI_MODEL_MINI"),
                     messages=messages,
                     tools=openai_tools,
                     tool_choice="auto",
