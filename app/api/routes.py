@@ -32,9 +32,7 @@ async def api_post_user_query(
     username: str = Depends(verify_token),
 ):
     try:
-        response = await run_in_threadpool(
-            query_post, db_conn, query.query, username, query.chat_id
-        )
+        response = await query_post(db_conn, query.query, username, query.chat_id)
         return response
     except:
         print(traceback.format_exc())

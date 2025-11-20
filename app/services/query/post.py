@@ -3,6 +3,7 @@ import asyncio
 from copy import deepcopy
 from bson import ObjectId
 from typing import Optional
+from fastapi.concurrency import run_in_threadpool
 from app.utils.vector_search import vector_search
 from app.utils.openai_utils import query_router, get_llm_response
 from app.utils.format_utils import normalise_query
@@ -17,7 +18,7 @@ from app.schemas.route import Route
 from app.services.query.mcp import query_mcp
 
 
-def query_post(
+async def query_post(
     db_conn: MongoDBConnection,
     query: list[Message],
     username: str,
@@ -41,12 +42,12 @@ def query_post(
     while num_tries < MAX_TRIES:
         try:
             all_similar_threads = []
-            route = query_router(original_user_query)
+            route = await run_in_threadpool(query_router, original_user_query)
             print(f"[INFO] Route: {route}")
             use_vector_search = route is Route.VECTOR
             if not use_vector_search:
                 # Use MCP to query MongoDB
-                mcp_result = asyncio.run(query_mcp(original_user_query))
+                mcp_result = await query_mcp(original_user_query)
 
                 # Extract pipeline information for query_doc
                 if mcp_result.get("collection_name"):
@@ -67,14 +68,15 @@ def query_post(
 
                 # If MCP returned a pipeline, execute it to get similar threads
                 if mcp_result.get("pipeline") and mcp_result.get("collection_name"):
-                    mongodb_data = get_response_from_pipeline(
+                    mongodb_data = await run_in_threadpool(
+                        get_response_from_pipeline,
                         db_conn,
                         mcp_result["collection_name"],
                         mcp_result["pipeline"],
                     )
                     if len(mongodb_data) > 0:
-                        _, similar_threads = get_thread_metadata_and_top_comments(
-                            db_conn, mongodb_data
+                        _, similar_threads = await run_in_threadpool(
+                            get_thread_metadata_and_top_comments, db_conn, mongodb_data
                         )
                         if len(similar_threads) > 0:
                             all_similar_threads.extend(similar_threads)
@@ -85,16 +87,16 @@ def query_post(
             else:
                 thread_collection = db_conn.get_collection("thread")
 
-                vector_search_result = vector_search(
-                    original_user_query, thread_collection
+                vector_search_result = await run_in_threadpool(
+                    vector_search, original_user_query, thread_collection
                 )
                 # only store the 'id' and 'vector_search_score' field into query_doc
                 query_doc["vector_search_result"] = [
                     {"id": result["id"], "score": result["vector_search_score"]}
                     for result in vector_search_result
                 ]
-                search_result, similar_threads = get_thread_metadata_and_top_comments(
-                    db_conn, vector_search_result
+                search_result, similar_threads = await run_in_threadpool(
+                    get_thread_metadata_and_top_comments, db_conn, vector_search_result
                 )
                 if len(similar_threads) > 0:
                     all_similar_threads.extend(similar_threads)
@@ -102,7 +104,7 @@ def query_post(
                 query[-1].content += f"""\n{search_result}"""
 
                 # For vector search, use traditional LLM response
-                response = get_llm_response(query)
+                response = await run_in_threadpool(get_llm_response, query)
 
             # Add similar threads to response if available
             if len(all_similar_threads) > 0:
@@ -141,4 +143,6 @@ def query_post(
             # only upsert the query document if the number of tries is exhausted or no error occurred
             if num_tries >= MAX_TRIES or not is_error:
                 query_doc["is_error"] = is_error
-                insert_query_document(db_conn, query_doc, username)
+                await run_in_threadpool(
+                    insert_query_document, db_conn, query_doc, username
+                )
