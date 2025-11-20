@@ -21,8 +21,8 @@ router = APIRouter()
 
 
 @router.get("/health")
-async def root(username: str = Depends(verify_token)):
-    return {"message": "Healthy", "user": username}
+async def root():
+    return {"message": "Healthy"}
 
 
 @router.post("/query", response_model=QueryPostResponse)
