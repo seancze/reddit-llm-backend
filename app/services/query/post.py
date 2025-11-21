@@ -1,5 +1,4 @@
 import time
-import asyncio
 from copy import deepcopy
 from bson import ObjectId
 from typing import Optional
@@ -24,6 +23,7 @@ async def query_post(
     username: str,
     chat_id: Optional[str] = None,
 ) -> QueryPostResponse:
+    start_time = time.time()
     query = normalise_query(query)
     query_id = ObjectId()
     query_doc = {
@@ -42,12 +42,20 @@ async def query_post(
     while num_tries < MAX_TRIES:
         try:
             all_similar_threads = []
-            route = await run_in_threadpool(query_router, original_user_query)
-            print(f"[INFO] Route: {route}")
+
+            # Time the routing decision
+            route_start = time.time()
+            route = await query_router(original_user_query)
+            route_time = time.time() - route_start
+            print(f"[PERF] Route decision took {route_time:.2f}s - Route: {route}")
+
             use_vector_search = route is Route.VECTOR
             if not use_vector_search:
                 # Use MCP to query MongoDB
+                mcp_start = time.time()
                 mcp_result = await query_mcp(original_user_query)
+                mcp_time = time.time() - mcp_start
+                print(f"[PERF] MCP query took {mcp_time:.2f}s")
 
                 # Extract pipeline information for query_doc
                 if mcp_result.get("collection_name"):
@@ -85,11 +93,14 @@ async def query_post(
                 # Use the MCP response as the LLM response
                 response = mcp_result.get("response", "No response generated")
             else:
+                vector_start = time.time()
                 thread_collection = db_conn.get_collection("thread")
 
                 vector_search_result = await run_in_threadpool(
                     vector_search, original_user_query, thread_collection
                 )
+                vector_time = time.time() - vector_start
+                print(f"[PERF] Vector search took {vector_time:.2f}s")
                 # only store the 'id' and 'vector_search_score' field into query_doc
                 query_doc["vector_search_result"] = [
                     {"id": result["id"], "score": result["vector_search_score"]}
@@ -104,7 +115,10 @@ async def query_post(
                 query[-1].content += f"""\n{search_result}"""
 
                 # For vector search, use traditional LLM response
+                llm_start = time.time()
                 response = await run_in_threadpool(get_llm_response, query)
+                llm_time = time.time() - llm_start
+                print(f"[PERF] LLM response generation took {llm_time:.2f}s")
 
             # Add similar threads to response if available
             if len(all_similar_threads) > 0:
@@ -121,6 +135,9 @@ async def query_post(
                 Message(role=Role.ASSISTANT, content=response)
             ]
             query_doc["response"] = response
+
+            total_time = time.time() - start_time
+            print(f"[PERF] Total query_post execution time: {total_time:.2f}s")
 
             # when a new query is made, the user's vote is guaranteed to be 0
             return QueryPostResponse(
