@@ -9,7 +9,7 @@ import json
 import os
 import pathlib
 from typing import Optional, Union
-from openai import OpenAI
+from openai import AsyncOpenAI
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from dotenv import load_dotenv
@@ -27,7 +27,7 @@ class MCPMongoClient:
     """Client for interacting with MongoDB through MCP using OpenAI."""
 
     def __init__(self):
-        self.openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.session: Optional[ClientSession] = None
         self._stdio_context = None
         self._session_context = None
@@ -147,7 +147,7 @@ class MCPMongoClient:
 
                 print(f"[MCP] Iteration {iteration}/{max_iterations}")
 
-                response = self.openai_client.chat.completions.create(
+                response = await self.openai_client.chat.completions.create(
                     model=os.getenv("OPENAI_MODEL_MINI"),
                     messages=messages,
                     tools=openai_tools,

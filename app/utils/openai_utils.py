@@ -1,4 +1,4 @@
-import openai
+from openai import AsyncOpenAI
 import os
 import app.constants as constants
 import json
@@ -12,13 +12,15 @@ from app.schemas.query_router_response import QueryRouterResponse, Route
 
 load_dotenv()
 
+client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-def query_router(user_query: list[Message]) -> Route:
+
+async def query_router(user_query: list[Message]) -> Route:
     messages = [
         {"role": "system", "content": constants.SYSTEM_PROMPT_QUERY_ROUTER},
     ] + user_query
 
-    completion = openai.beta.chat.completions.parse(
+    completion = await client.beta.chat.completions.parse(
         model=os.environ.get("OPENAI_MODEL_STANDARD"),
         messages=messages,
         response_format=QueryRouterResponse,
@@ -29,12 +31,12 @@ def query_router(user_query: list[Message]) -> Route:
     return parsed_obj.route
 
 
-def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
+async def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
     messages = [
         {"role": "system", "content": constants.SYSTEM_PROMPT_GET_MONGODB_PIPELINE},
     ] + user_query
 
-    completion = openai.beta.chat.completions.parse(
+    completion = await client.beta.chat.completions.parse(
         model=os.environ.get("OPENAI_MODEL_STANDARD"),
         messages=messages,
         response_format=MongoPipelineResponse,
@@ -59,11 +61,11 @@ def get_mongo_pipeline(user_query: list[Message]) -> MongoPipelineResponse:
         raise e
 
 
-def get_llm_response(prompt: list[Message]):
+async def get_llm_response(prompt: list[Message]):
     messages = [
         {"role": "system", "content": constants.SYSTEM_PROMPT},
     ] + prompt
-    completion = openai.chat.completions.create(
+    completion = await client.chat.completions.create(
         model=os.environ.get("OPENAI_MODEL_MINI"), messages=messages
     )
 

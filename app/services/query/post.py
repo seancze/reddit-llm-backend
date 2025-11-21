@@ -96,8 +96,8 @@ async def query_post(
                 vector_start = time.time()
                 thread_collection = db_conn.get_collection("thread")
 
-                vector_search_result = await run_in_threadpool(
-                    vector_search, original_user_query, thread_collection
+                vector_search_result = await vector_search(
+                    original_user_query, thread_collection
                 )
                 vector_time = time.time() - vector_start
                 print(f"[PERF] Vector search took {vector_time:.2f}s")
@@ -116,7 +116,7 @@ async def query_post(
 
                 # For vector search, use traditional LLM response
                 llm_start = time.time()
-                response = await run_in_threadpool(get_llm_response, query)
+                response = await get_llm_response(query)
                 llm_time = time.time() - llm_start
                 print(f"[PERF] LLM response generation took {llm_time:.2f}s")
 

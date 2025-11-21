@@ -1,19 +1,20 @@
-import openai
 import os
 from dotenv import load_dotenv
 from app.schemas.message import Message
 from pymongo.collection import Collection
+from openai import AsyncOpenAI
+from fastapi.concurrency import run_in_threadpool
 
 load_dotenv()
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 
 # TODO: Perhaps, before doing a vector search, we first filter for those with at least x number of upvotes?
 # TODO: Alternatively, do vector search first THEN filter for upvotes?
-def vector_search(user_query: list[Message], collection: Collection):
+async def vector_search(user_query: list[Message], collection: Collection):
     """
     Perform a vector search in the MongoDB collection based on the user query.
 
@@ -27,7 +28,7 @@ def vector_search(user_query: list[Message], collection: Collection):
     # print(f"user_query: {user_query}")
     user_query_str = "\n".join([msg.content for msg in user_query])
     # Generate embedding for the user query
-    query_embedding = _get_embedding(user_query_str)
+    query_embedding = await _get_embedding(user_query_str)
 
     if query_embedding is None:
         return "Invalid query or embedding generation failed."
@@ -61,11 +62,11 @@ def vector_search(user_query: list[Message], collection: Collection):
     ]
 
     # Execute the search
-    results = collection.aggregate(pipeline)
-    return list(results)
+    results = await run_in_threadpool(lambda: list(collection.aggregate(pipeline)))
+    return results
 
 
-def _get_embedding(text):
+async def _get_embedding(text):
     """Generate an embedding for the given text using OpenAI's API."""
 
     # Check for valid input
@@ -74,11 +75,8 @@ def _get_embedding(text):
 
     try:
         # Call OpenAI API to get the embedding
-        embedding = (
-            openai.embeddings.create(input=text, model=EMBEDDING_MODEL)
-            .data[0]
-            .embedding
-        )
+        response = await client.embeddings.create(input=text, model=EMBEDDING_MODEL)
+        embedding = response.data[0].embedding
         return embedding
     except Exception as e:
         raise e
