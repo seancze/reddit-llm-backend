@@ -1,10 +1,15 @@
 import time
+import json
 from copy import deepcopy
 from bson import ObjectId
 from typing import Optional
 from fastapi.concurrency import run_in_threadpool
 from app.utils.vector_search import vector_search
-from app.utils.openai_utils import query_router, get_llm_response
+from app.utils.openai_utils import (
+    query_router,
+    get_llm_response,
+    get_llm_response_streaming,
+)
 from app.utils.format_utils import normalise_query
 from pymongo.errors import OperationFailure
 from app.db.upsert import insert_query_document
@@ -15,6 +20,7 @@ from app.schemas.message import Message
 from app.schemas.role import Role
 from app.schemas.route import Route
 from app.services.query.mcp import query_mcp
+from app.mcp.client import get_mcp_client
 
 
 async def query_post(
@@ -163,3 +169,184 @@ async def query_post(
                 await run_in_threadpool(
                     insert_query_document, db_conn, query_doc, username
                 )
+
+
+async def query_post_streaming(
+    db_conn: MongoDBConnection,
+    query: list[Message],
+    username: str,
+    chat_id: Optional[str] = None,
+):
+    """
+    Streaming version of query_post for both NOSQL and VECTOR routes.
+
+    Yields Server-Sent Events (SSE) in the format:
+    data: {"type": "route", "data": "nosql"}
+    data: {"type": "thinking", "data": {"iteration": 1, "tool": "...", "args": {...}}}
+    data: {"type": "content", "data": "chunk of text"}
+    data: {"type": "metadata", "data": {...}}
+    data: {"type": "complete", "data": {...}}
+    """
+    start_time = time.time()
+    query = normalise_query(query)
+    query_id = ObjectId()
+    query_doc = {
+        "_id": query_id,
+        "chat_id": ObjectId(chat_id) if chat_id else query_id,
+        "updated_utc": int(time.time()),
+        "query": query[-1].content,
+    }
+    original_user_query = deepcopy(query)
+
+    try:
+        # Time the routing decision
+        route_start = time.time()
+        route = await query_router(original_user_query)
+        route_time = time.time() - route_start
+        print(f"[PERF] Route decision took {route_time:.2f}s - Route: {route}")
+
+        # Send route information
+        yield f"data: {json.dumps({'type': 'route', 'data': route.value})}\n\n"
+
+        use_vector_search = route is Route.VECTOR
+
+        if not use_vector_search:
+            # Use MCP with streaming
+            mcp_start = time.time()
+            mcp_client = await get_mcp_client()
+
+            full_response = ""
+            pipeline_metadata = None
+
+            # Stream the MCP response
+            async for chunk in mcp_client.query_with_mcp_streaming(original_user_query):
+                if chunk["type"] == "thinking":
+                    # Stream thinking process to the client
+                    yield f"data: {json.dumps({'type': 'thinking', 'data': chunk['data']})}\n\n"
+                elif chunk["type"] == "content":
+                    # Stream content chunks to the client
+                    full_response += chunk["data"]
+                    yield f"data: {json.dumps({'type': 'content', 'data': chunk['data']})}\n\n"
+                elif chunk["type"] == "metadata":
+                    # Store metadata for later
+                    pipeline_metadata = chunk["data"]
+
+            mcp_time = time.time() - mcp_start
+            print(f"[PERF] MCP streaming query took {mcp_time:.2f}s")
+
+            # Store pipeline information in query_doc
+            if pipeline_metadata:
+                if pipeline_metadata.get("collection_name"):
+                    query_doc["collection_name"] = pipeline_metadata["collection_name"]
+                if pipeline_metadata.get("pipeline"):
+                    query_doc["pipeline"] = pipeline_metadata["pipeline"]
+                if pipeline_metadata.get("reason"):
+                    query_doc["reason"] = pipeline_metadata["reason"]
+
+            # Get similar threads if we have pipeline data
+            all_similar_threads = []
+            if (
+                pipeline_metadata
+                and pipeline_metadata.get("pipeline")
+                and pipeline_metadata.get("collection_name")
+            ):
+                mongodb_data = await run_in_threadpool(
+                    get_response_from_pipeline,
+                    db_conn,
+                    pipeline_metadata["collection_name"],
+                    pipeline_metadata["pipeline"],
+                )
+                if len(mongodb_data) > 0:
+                    _, similar_threads = await run_in_threadpool(
+                        get_thread_metadata_and_top_comments, db_conn, mongodb_data
+                    )
+                    if len(similar_threads) > 0:
+                        all_similar_threads.extend(similar_threads)
+
+            # Add similar threads to response if available
+            if len(all_similar_threads) > 0:
+                all_similar_threads = sorted(
+                    set(all_similar_threads), key=lambda x: x[1], reverse=True
+                )
+                all_similar_threads_formatted = "\n\n**Relevant posts**\n"
+                for i, el in enumerate(all_similar_threads):
+                    all_similar_threads_formatted += f"{i+1}. {el[0]}\n"
+
+                full_response += all_similar_threads_formatted
+                # Stream the similar threads
+                yield f"data: {json.dumps({'type': 'content', 'data': all_similar_threads_formatted})}\n\n"
+
+            query_doc["response"] = full_response
+
+        else:
+            # For vector search, stream the LLM response
+            vector_start = time.time()
+            thread_collection = db_conn.get_collection("thread")
+
+            vector_search_result = await vector_search(
+                original_user_query, thread_collection
+            )
+            vector_time = time.time() - vector_start
+            print(f"[PERF] Vector search took {vector_time:.2f}s")
+
+            query_doc["vector_search_result"] = [
+                {"id": result["id"], "score": result["vector_search_score"]}
+                for result in vector_search_result
+            ]
+            search_result, similar_threads = await run_in_threadpool(
+                get_thread_metadata_and_top_comments, db_conn, vector_search_result
+            )
+
+            all_similar_threads = []
+            if len(similar_threads) > 0:
+                all_similar_threads.extend(similar_threads)
+
+            query[-1].content += f"""\n{search_result}"""
+
+            # Stream the LLM response for vector search
+            llm_start = time.time()
+            response = ""
+            async for chunk in get_llm_response_streaming(query):
+                response += chunk
+                yield f"data: {json.dumps({'type': 'content', 'data': chunk})}\n\n"
+
+            llm_time = time.time() - llm_start
+            print(f"[PERF] LLM response streaming took {llm_time:.2f}s")
+
+            # Add similar threads
+            if len(all_similar_threads) > 0:
+                all_similar_threads = sorted(
+                    set(all_similar_threads), key=lambda x: x[1], reverse=True
+                )
+                all_similar_threads_formatted = "\n\n**Relevant posts**\n"
+                for i, el in enumerate(all_similar_threads):
+                    all_similar_threads_formatted += f"{i+1}. {el[0]}\n"
+                response += all_similar_threads_formatted
+                yield f"data: {json.dumps({'type': 'content', 'data': all_similar_threads_formatted})}\n\n"
+
+            query_doc["response"] = response
+
+        total_time = time.time() - start_time
+        print(f"[PERF] Total query_post_streaming execution time: {total_time:.2f}s")
+
+        # Send completion event with metadata
+        completion_data = {
+            "query_id": str(query_doc["_id"]),
+            "chat_id": str(query_doc["chat_id"]),
+            "user_vote": 0,
+        }
+        yield f"data: {json.dumps({'type': 'complete', 'data': completion_data})}\n\n"
+
+    except Exception as e:
+        print(f"[ERROR] Streaming query failed: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        query_doc["error"] = str(e)
+        query_doc["error_type"] = "streaming_error"
+        query_doc["is_error"] = True
+        yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
+    finally:
+        # Save the query document
+        query_doc["is_error"] = query_doc.get("is_error", False)
+        await run_in_threadpool(insert_query_document, db_conn, query_doc, username)

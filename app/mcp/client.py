@@ -234,6 +234,196 @@ class MCPMongoClient:
             traceback.print_exc()
             raise
 
+    async def query_with_mcp_streaming(
+        self, user_query: Union[str, list[Message]], max_iterations: int = 10
+    ):
+        """
+        Query MongoDB using MCP and stream the final OpenAI response.
+
+        This method executes tool calls and streams both the thinking process
+        and the final response synthesis to provide real-time feedback to users.
+
+        Args:
+            user_query: The user's natural language query (string) or full chat context (list of Messages)
+            max_iterations: Maximum number of tool call iterations to prevent infinite loops
+
+        Yields:
+            dict: Chunks containing:
+                - {"type": "thinking", "data": {"iteration": int, "tool": str, "args": dict}} - Tool execution info
+                - {"type": "content", "data": str} - Text chunks from the streaming response
+                - {"type": "metadata", "data": dict} - Pipeline metadata at the end
+        """
+        # Track pipeline information
+        pipeline_info = {
+            "pipeline": None,
+            "collection_name": None,
+            "reason": "",
+        }
+
+        try:
+            # List available tools from MCP server
+            print("[MCP] Listing available tools...")
+            tools_list = await self.session.list_tools()
+            print(f"[MCP] Found {len(tools_list.tools)} tools")
+
+            # Convert MCP tools to OpenAI function calling format
+            openai_tools = []
+            for tool in tools_list.tools:
+                openai_tools.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.inputSchema,
+                        },
+                    }
+                )
+
+            # Initialize conversation with system prompt
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant with access to a MongoDB database. "
+                        "The database contains Reddit data including threads, queries, and other collections. "
+                        "Use the available tools to explore and query the database:\n"
+                        "1. Start by listing collections if you're unsure what data is available\n"
+                        "2. Get the schema of a collection to understand its structure\n"
+                        "3. Use aggregation or find operations to query the data\n"
+                        "When presenting results, format them in a clear, readable way. "
+                        "If you find relevant data, include key details and summarize findings."
+                    ),
+                },
+            ]
+
+            # Add user query - either as a string or convert Message list to OpenAI format
+            if isinstance(user_query, str):
+                messages.append({"role": "user", "content": user_query})
+            else:
+                # Convert Message objects to OpenAI message format
+                for msg in user_query:
+                    messages.append({"role": msg.role.value, "content": msg.content})
+
+            # Agentic loop - let OpenAI decide which tools to use
+            iteration = 0
+            while iteration < max_iterations:
+                iteration += 1
+
+                print(f"[MCP] Iteration {iteration}/{max_iterations}")
+
+                response = await self.openai_client.chat.completions.create(
+                    model=os.getenv("OPENAI_MODEL_MINI"),
+                    messages=messages,
+                    tools=openai_tools,
+                    tool_choice="auto",
+                )
+
+                response_message = response.choices[0].message
+
+                # Check if OpenAI wants to use tools
+                if response_message.tool_calls:
+                    # Add assistant's message to conversation
+                    messages.append(response_message)
+
+                    # Execute each tool call
+                    for tool_call in response_message.tool_calls:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
+
+                        print(f"[MCP] Calling tool: {function_name}")
+                        print(f"[MCP] Arguments: {json.dumps(function_args, indent=2)}")
+
+                        # Stream thinking process to user
+                        yield {
+                            "type": "thinking",
+                            "data": {
+                                "iteration": iteration,
+                                "tool": function_name,
+                                "args": function_args,
+                            },
+                        }
+
+                        # Capture pipeline information if this is an aggregation
+                        if function_name == "aggregate_collection":
+                            pipeline_info["collection_name"] = function_args.get(
+                                "collection"
+                            )
+                            pipeline_info["pipeline"] = function_args.get("pipeline")
+                            pipeline_info["reason"] = (
+                                f"Used MCP aggregation on collection: {function_args.get('collection')}"
+                            )
+                        elif function_name == "find_documents":
+                            pipeline_info["collection_name"] = function_args.get(
+                                "collection"
+                            )
+                            # Convert find to pipeline format for consistency
+                            find_filter = function_args.get("filter", {})
+                            find_limit = function_args.get("limit", 10)
+                            pipeline_info["pipeline"] = [
+                                {"$match": find_filter},
+                                {"$limit": find_limit},
+                            ]
+                            pipeline_info["reason"] = (
+                                f"Used MCP find on collection: {function_args.get('collection')}"
+                            )
+
+                        # Call the MCP tool
+                        result = await self.session.call_tool(
+                            function_name, function_args
+                        )
+
+                        # Extract text content from result
+                        tool_result = result.content[0].text if result.content else "{}"
+
+                        # Add tool result to conversation
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": function_name,
+                                "content": tool_result,
+                            }
+                        )
+                else:
+                    # No more tool calls - now stream the final response
+                    print(
+                        f"[MCP] Tool execution completed in {iteration} iterations. Starting streaming..."
+                    )
+
+                    # Stream the final response
+                    stream = await self.openai_client.chat.completions.create(
+                        model=os.getenv("OPENAI_MODEL_MINI"),
+                        messages=messages,
+                        stream=True,
+                    )
+
+                    async for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            yield {
+                                "type": "content",
+                                "data": chunk.choices[0].delta.content,
+                            }
+
+                    # Send metadata at the end
+                    yield {"type": "metadata", "data": pipeline_info}
+                    return
+
+            # If we hit max iterations
+            print(f"[MCP] Reached max iterations ({max_iterations})")
+            yield {
+                "type": "content",
+                "data": "Query completed but may be incomplete due to iteration limit.",
+            }
+            yield {"type": "metadata", "data": pipeline_info}
+
+        except Exception as e:
+            print(f"[MCP ERROR] Streaming query failed: {str(e)}")
+            import traceback
+
+            traceback.print_exc()
+            raise
+
 
 async def get_mcp_client() -> MCPMongoClient:
     """

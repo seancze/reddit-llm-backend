@@ -1,13 +1,13 @@
 import traceback
 from fastapi import APIRouter, HTTPException, Depends, Path, Body, Query
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from app.schemas.query_request import QueryRequest
 from app.schemas.query_get_response import QueryGetResponse
 from app.schemas.query_post_response import QueryPostResponse
 from app.schemas.vote_request import VoteRequest
 from app.schemas.chat_list_response import ChatListResponse
-from app.services.query.post import query_post
+from app.services.query.post import query_post, query_post_streaming
 from app.services.chat.get import chat_get
 from app.services.vote.put import vote_put
 from app.services.chat.list import chat_list
@@ -34,6 +34,26 @@ async def api_post_user_query(
     try:
         response = await query_post(db_conn, query.query, username, query.chat_id)
         return response
+    except:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500)
+
+
+@router.post("/query/stream")
+async def api_post_user_query_streaming(
+    query: QueryRequest,
+    db_conn=Depends(get_db_client),
+    username: str = Depends(verify_token),
+):
+    """
+    Stream the query response for NOSQL routes.
+    Returns Server-Sent Events (SSE) format for real-time streaming.
+    """
+    try:
+        return StreamingResponse(
+            query_post_streaming(db_conn, query.query, username, query.chat_id),
+            media_type="text/event-stream",
+        )
     except:
         print(traceback.format_exc())
         raise HTTPException(status_code=500)
