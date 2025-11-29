@@ -1,5 +1,4 @@
 from app.db.conn import MongoDBConnection
-from app.utils.format_utils import get_human_readable_datetime
 from bson import ObjectId
 from typing import Optional, List
 from app.schemas.role import Role
@@ -128,13 +127,6 @@ def get_response_from_pipeline(
     documents = list(
         collection.aggregate(pipeline, collation={"locale": "en", "strength": 1})
     )
-    for doc in documents:
-        if "created_utc" in doc:
-            doc["created_date"] = get_human_readable_datetime(doc["created_utc"])
-            del doc["created_utc"]
-        else:
-            # if one doc does not have "created_utc", all docs will not have "created_utc"
-            break
 
     return documents
 
