@@ -126,8 +126,10 @@ class MCPMongoClient:
                         "1. Start by listing collections if you're unsure what data is available\n"
                         "2. Get the schema of a collection to understand its structure\n"
                         "3. Use aggregation or find operations to query the data\n"
+                        "4. IMPORTANT: Whenever you find documents with a 'created_utc' field, use the 'get_human_readable_datetime' tool to convert the timestamp to a human-readable format\n"
                         "When presenting results, format them in a clear, readable way. "
-                        "If you find relevant data, include key details and summarize findings."
+                        "If you find relevant data, include key details and summarize findings. "
+                        "Always convert UTC timestamps to human-readable dates for better user experience."
                     ),
                 },
             ]
@@ -291,8 +293,10 @@ class MCPMongoClient:
                         "1. Start by listing collections if you're unsure what data is available\n"
                         "2. Get the schema of a collection to understand its structure\n"
                         "3. Use aggregation or find operations to query the data\n"
+                        "4. IMPORTANT: Whenever you find documents with a 'created_utc' field, use the 'get_human_readable_datetime' tool to convert the timestamp to a human-readable format\n"
                         "When presenting results, format them in a clear, readable way. "
-                        "If you find relevant data, include key details and summarize findings."
+                        "If you find relevant data, include key details and summarize findings. "
+                        "Always convert UTC timestamps to human-readable dates for better user experience."
                     ),
                 },
             ]

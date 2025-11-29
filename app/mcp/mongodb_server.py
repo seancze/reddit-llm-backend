@@ -13,6 +13,7 @@ import os
 import json
 from dotenv import load_dotenv
 from bson import ObjectId
+from tools.datetime_tools import get_human_readable_datetime
 
 load_dotenv()
 
@@ -134,6 +135,24 @@ async def list_tools() -> list[types.Tool]:
                     },
                 },
                 "required": ["collection"],
+            },
+        ),
+        types.Tool(
+            name="get_human_readable_datetime",
+            description=(
+                "Convert a UTC timestamp (seconds since epoch) to a human-readable datetime string. "
+                "This tool should be called whenever documents contain the 'created_utc' field or any other UTC timestamp. "
+                "Returns a formatted date string like 'Aug 31 2024, 08:15PM' in GMT+8 timezone."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "utc_timestamp": {
+                        "type": "integer",
+                        "description": "UTC timestamp in seconds since epoch (e.g., from 'created_utc' field)",
+                    },
+                },
+                "required": ["utc_timestamp"],
             },
         ),
     ]
@@ -268,6 +287,36 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     text=json.dumps(schema_info, indent=2, ensure_ascii=False),
                 )
             ]
+
+        elif name == "get_human_readable_datetime":
+            utc_timestamp = arguments["utc_timestamp"]
+
+            try:
+                # Convert timestamp to human-readable format
+                human_readable = get_human_readable_datetime(utc_timestamp)
+
+                result = {
+                    "utc_timestamp": utc_timestamp,
+                    "human_readable": human_readable,
+                }
+
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(result, indent=2, ensure_ascii=False),
+                    )
+                ]
+            except Exception as conv_error:
+                error_msg = {
+                    "error": f"Failed to convert timestamp: {str(conv_error)}",
+                    "utc_timestamp": utc_timestamp,
+                }
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(error_msg, indent=2),
+                    )
+                ]
 
         else:
             raise ValueError(f"Unknown tool: {name}")
