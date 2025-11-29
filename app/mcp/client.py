@@ -249,7 +249,7 @@ class MCPMongoClient:
 
         Yields:
             dict: Chunks containing:
-                - {"type": "thinking", "data": {"iteration": int, "tool": str, "args": dict}} - Tool execution info
+                - {"type": "thinking", "data": {"iteration": int, "tool": str, "args": dict, "collection": str, "pipeline": list}} - Tool execution info
                 - {"type": "content", "data": str} - Text chunks from the streaming response
                 - {"type": "metadata", "data": dict} - Pipeline metadata at the end
         """
@@ -334,18 +334,21 @@ class MCPMongoClient:
                         print(f"[MCP] Calling tool: {function_name}")
                         print(f"[MCP] Arguments: {json.dumps(function_args, indent=2)}")
 
-                        # Stream thinking process to user
-                        yield {
-                            "type": "thinking",
-                            "data": {
-                                "iteration": iteration,
-                                "tool": function_name,
-                                "args": function_args,
-                            },
+                        # Prepare thinking event data
+                        thinking_data = {
+                            "iteration": iteration,
+                            "tool": function_name,
+                            "args": function_args,
                         }
 
-                        # Capture pipeline information if this is an aggregation
+                        # Add collection and pipeline info for query operations
                         if function_name == "aggregate_collection":
+                            thinking_data["collection"] = function_args.get(
+                                "collection"
+                            )
+                            thinking_data["pipeline"] = function_args.get("pipeline")
+
+                            # Also capture for metadata
                             pipeline_info["collection_name"] = function_args.get(
                                 "collection"
                             )
@@ -354,19 +357,30 @@ class MCPMongoClient:
                                 f"Used MCP aggregation on collection: {function_args.get('collection')}"
                             )
                         elif function_name == "find_documents":
-                            pipeline_info["collection_name"] = function_args.get(
+                            thinking_data["collection"] = function_args.get(
                                 "collection"
                             )
-                            # Convert find to pipeline format for consistency
                             find_filter = function_args.get("filter", {})
                             find_limit = function_args.get("limit", 10)
-                            pipeline_info["pipeline"] = [
+                            thinking_data["pipeline"] = [
                                 {"$match": find_filter},
                                 {"$limit": find_limit},
                             ]
+
+                            # Also capture for metadata
+                            pipeline_info["collection_name"] = function_args.get(
+                                "collection"
+                            )
+                            pipeline_info["pipeline"] = thinking_data["pipeline"]
                             pipeline_info["reason"] = (
                                 f"Used MCP find on collection: {function_args.get('collection')}"
                             )
+
+                        # Stream thinking process to user (with collection/pipeline if available)
+                        yield {
+                            "type": "thinking",
+                            "data": thinking_data,
+                        }
 
                         # Call the MCP tool
                         result = await self.session.call_tool(
@@ -386,24 +400,17 @@ class MCPMongoClient:
                             }
                         )
                 else:
-                    # No more tool calls - now stream the final response
-                    print(
-                        f"[MCP] Tool execution completed in {iteration} iterations. Starting streaming..."
-                    )
+                    # No more tool calls
+                    print(f"[MCP] Tool execution completed in {iteration} iterations.")
 
-                    # Stream the final response
-                    stream = await self.openai_client.chat.completions.create(
-                        model=os.getenv("OPENAI_MODEL_MINI"),
-                        messages=messages,
-                        stream=True,
-                    )
+                    # The final response is already in response_message.content
+                    final_content = response_message.content or "No response generated"
 
-                    async for chunk in stream:
-                        if chunk.choices[0].delta.content:
-                            yield {
-                                "type": "content",
-                                "data": chunk.choices[0].delta.content,
-                            }
+                    # Stream it as a single content chunk
+                    yield {
+                        "type": "content",
+                        "data": final_content,
+                    }
 
                     # Send metadata at the end
                     yield {"type": "metadata", "data": pipeline_info}
