@@ -44,7 +44,7 @@ An overview of how the RAG pipeline works is shown below:
 2. Install necessary dependencies by running `pip install -r requirements.txt`
 3. Rename `.env-template` to `.env` and fill up the `.env` file. `JWT_SECRET` can be any value so long as it is the same as `AUTH_SECRET` in [the frontend repository](https://github.com/seancze/reddit-llm-frontend).
 
-## Usage
+## Deploy locally
 
 ### Deploy locally using FastAPI
 
@@ -63,7 +63,7 @@ gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker -
 
 - See [here](https://www.uvicorn.org/#running-with-gunicorn) for more information
 
-### Running on docker
+### Deploy locally on Docker
 
 **Build image**
 
@@ -74,10 +74,64 @@ docker build -t reddit-llm-backend app
 **Run image**
 
 ```shell
-docker run -p 8000:8000 --env-file .env reddit-llm-backend
+docker run -d -p 8000:8000 --env-file .env reddit-llm-backend
 ```
 
-### Deploy to Heroku
+- `-d` = Detaches the container from the terminal so it keeps running in the background
+
+**Common Docker commands**
+
+```shell
+docker logs CONTAINER_ID -f
+```
+
+- `-f` = Stream logs continuously
+
+## Deploy on AWS EC2
+
+This repository uses GitHub Actions for automated deployment. On every push to `main`, the workflow automatically:
+
+1. Checks out the latest code
+2. Authenticates to EC2 using the private key
+3. Pulls the latest changes on the EC2 instance
+4. Builds a new Docker image
+5. Stops the old container and starts a new one
+6. Cleans up old Docker images
+
+### Setting up your AWS EC2 instance
+
+1. Follow the AWS guide [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html#having-ec2-create-your-key-pair) to create a valid key pair
+   - Remember to set permissions of your generated key: `chmod 400 key-pair-name.pem`
+2. Connect to instance: `ssh -i "~/.ssh/key-pair-name.pem" EC2_USER@EC2_HOST`
+3. Use root user: `sudo -s` (source: https://stackoverflow.com/questions/7407333/amazon-ec2-root-login)
+4. Download pip3: `python3 -m ensurepip --upgrade` ([source](https://pip.pypa.io/en/stable/installation/))
+   - `python3` should be pre-installed
+5. Download git: `sudo dnf install git-all` ([source](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git))
+6. Download Docker (applies to Amazon Linux 2023 images only)
+
+```shell
+# Install Docker from the Amazon Linux 2023 repos
+sudo yum install -y docker
+
+# Start Docker and enable it on boot
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Allow ec2-user to run docker without sudo
+sudo usermod -aG docker ec2-user
+```
+
+7. Clone this repository and navigate into the repository
+
+```shell
+cd ~
+git clone https://github.com/seancze/reddit-llm-backend.git
+cd reddit-llm-backend
+```
+
+8. Copy the `.env-template` into a `.env` file and update the values accordingly
+
+## [Deprecated] Deploy to Heroku
 
 ```shell
 git subtree push --prefix app heroku main
