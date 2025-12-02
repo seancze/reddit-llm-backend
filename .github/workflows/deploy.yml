@@ -1,0 +1,74 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          # Create SSH directory and set up private key
+          mkdir -p ~/.ssh
+          echo "$PRIVATE_KEY" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+
+          # Add EC2 host to known_hosts to avoid SSH prompt
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+
+          # SSH into EC2 and execute deployment commands
+          ssh -i ~/.ssh/deploy_key.pem ${USER}@${HOST} << 'ENDSSH'
+            set -e  # Exit on error
+            
+            # Navigate to the project directory (adjust if different)
+            cd ~/reddit-llm-backend || {
+              echo "Project directory not found. Cloning repository..."
+              git clone https://github.com/seancze/reddit-llm-backend.git
+              cd reddit-llm-backend
+            }
+
+            # Gain privileged access
+            sudo -s
+            
+            # Pull the latest changes
+            echo "Pulling latest changes from GitHub..."
+            git pull origin main
+            
+            # Stop and remove existing container (if running)
+            echo "Stopping existing container..."
+            docker stop reddit-llm-backend 2>/dev/null || true
+            docker rm reddit-llm-backend 2>/dev/null || true
+            
+            # Build the Docker image
+            echo "Building Docker image..."
+            docker build -t reddit-llm-backend app
+            
+            # Run the new container
+            echo "Starting new container..."
+            docker run -d \
+              --name reddit-llm-backend \
+              -p 8000:8000 \
+              --env-file .env \
+              --restart unless-stopped \
+              reddit-llm-backend
+            
+            # Clean up old Docker images to save space
+            echo "Cleaning up old Docker images..."
+            docker image prune -f
+            
+            echo "Deployment completed successfully!"
+            
+            # Show container status
+            docker ps | grep reddit-llm-backend
+          ENDSSH
