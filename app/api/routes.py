@@ -1,5 +1,5 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Depends, Path, Body, Query
+from fastapi import APIRouter, HTTPException, Depends, Path, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from app.schemas.query_request import QueryRequest
@@ -114,11 +114,11 @@ async def api_list_chat(
         raise HTTPException(status_code=500)
 
 
-@router.delete("/chat")
+@router.delete("/chat/{chat_id}")
 async def api_delete_chat(
     db_conn=Depends(get_db_client),
     username: str = Depends(verify_token),
-    chat_id: str = Body(..., embed=True, description="The ID of the chat"),
+    chat_id: str = Path(description="The ID of the chat"),
 ):
     try:
         deleted_queries_count = await run_in_threadpool(chat_delete, db_conn, chat_id)
