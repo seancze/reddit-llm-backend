@@ -38,37 +38,34 @@ jobs:
               cd reddit-llm-backend
             }
 
-            # Gain privileged access
-            sudo -s
-            
             # Pull the latest changes
             echo "Pulling latest changes from GitHub..."
             git pull origin main
-            
+
             # Stop and remove existing container (if running)
             echo "Stopping existing container..."
-            docker stop reddit-llm-backend 2>/dev/null || true
-            docker rm reddit-llm-backend 2>/dev/null || true
-            
+            sudo docker stop reddit-llm-backend 2>/dev/null || true
+            sudo docker rm reddit-llm-backend 2>/dev/null || true
+
             # Build the Docker image
             echo "Building Docker image..."
-            docker build -t reddit-llm-backend app
-            
+            sudo docker build -t reddit-llm-backend app
+
             # Run the new container
             echo "Starting new container..."
-            docker run -d \
+            sudo docker run -d \
               --name reddit-llm-backend \
               -p 8000:8000 \
               --env-file .env \
               --restart unless-stopped \
               reddit-llm-backend
-            
+
             # Clean up old Docker images to save space
             echo "Cleaning up old Docker images..."
-            docker image prune -f
-            
+            sudo docker image prune -f
+
             echo "Deployment completed successfully!"
-            
+
             # Show container status
-            docker ps | grep reddit-llm-backend
+            sudo docker ps | grep reddit-llm-backend
           ENDSSH
