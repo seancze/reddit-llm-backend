@@ -25,7 +25,7 @@ async def root():
     return {"message": "Healthy"}
 
 
-@router.post("/query", response_model=QueryPostResponse)
+@router.post("/queries", response_model=QueryPostResponse)
 async def api_post_user_query(
     query: QueryRequest,
     db_conn=Depends(get_db_client),
@@ -39,7 +39,7 @@ async def api_post_user_query(
         raise HTTPException(status_code=500)
 
 
-@router.post("/query/stream")
+@router.post("/queries/stream")
 async def api_post_user_query_streaming(
     query: QueryRequest,
     db_conn=Depends(get_db_client),
@@ -59,7 +59,7 @@ async def api_post_user_query_streaming(
         raise HTTPException(status_code=500)
 
 
-@router.put("/vote")
+@router.put("/votes")
 async def api_put_vote(
     vote_request: VoteRequest,
     db_conn=Depends(get_db_client),
@@ -82,7 +82,7 @@ async def api_put_vote(
         raise HTTPException(status_code=500)
 
 
-@router.get("/chat/{chat_id}", response_model=QueryGetResponse)
+@router.get("/chats/{chat_id}", response_model=QueryGetResponse)
 async def api_get_chat(
     db_conn=Depends(get_db_client),
     username: Optional[str] = Depends(verify_token_or_anonymous),
@@ -98,7 +98,7 @@ async def api_get_chat(
         raise HTTPException(status_code=500)
 
 
-@router.get("/chat", response_model=List[ChatListResponse])
+@router.get("/chats", response_model=List[ChatListResponse])
 async def api_list_chat(
     db_conn=Depends(get_db_client),
     username: str = Depends(verify_token),
@@ -114,7 +114,7 @@ async def api_list_chat(
         raise HTTPException(status_code=500)
 
 
-@router.delete("/chat/{chat_id}")
+@router.delete("/chats/{chat_id}")
 async def api_delete_chat(
     db_conn=Depends(get_db_client),
     username: str = Depends(verify_token),

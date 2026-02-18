@@ -10,30 +10,30 @@ This repository provides all backend endpoints for https://reddit-llm.vercel.app
 
 - Checks if the backend service is running
 
-#### `POST /query`
+#### `POST /queries`
 
 - Generates a new LLM response to a user's query
 
 An overview of how the RAG pipeline works is shown below:
 ![RAG pipeline](assets/rag-pipeline.png)
 
-#### `PUT /vote`
+#### `PUT /votes`
 
 - Updates an existing query document with a user's vote
 - A thumbs up corresponds to a vote of 1
 - A thumbs down corresponds to a vote of -1
 
-#### `GET /chat/[id]`
+#### `GET /chats/[id]`
 
 - Retrieves an existing chat by id
 - If the chat has been deleted or the id does not exist, a 404 error is returned
 
-#### `GET /chat`
+#### `GET /chats`
 
 - Retrieves the first query of the most recent 25 chats that have not been deleted
-- Accepts a 0-indexed `page` query parameter to retrieve older chats. For example, `GET /chat?page=1` retrieves the 26th to 50th chat, sorted in reverse chronological order
+- Accepts a 0-indexed `page` query parameter to retrieve older chats. For example, `GET /chats?page=1` retrieves the 26th to 50th chat, sorted in reverse chronological order
 
-#### `DELETE /chat/[id]`
+#### `DELETE /chats/[id]`
 
 - Deletes a chat by setting `is_deleted=True`
 - In order to investigate malicious requests, the chat is not actually deleted from the database
