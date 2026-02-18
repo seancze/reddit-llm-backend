@@ -199,7 +199,30 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 ]
 
             collection = db[collection_name]
-            results = list(collection.aggregate(pipeline))
+
+            if collection_name == "thread":
+                # Exclude embedding and _id fields
+                pipeline.insert(0, {"$project": {"selftext_embedding": 0, "_id": 0}})
+
+            # Filter to sgexams subreddit
+            pipeline.insert(0, {"$match": {"subreddit": "sgexams"}})
+
+            # Cap $limit to 10
+            limit_index = next(
+                (i for i, stage in enumerate(pipeline) if "$limit" in stage), None
+            )
+            if limit_index is not None:
+                original_limit = pipeline[limit_index]["$limit"]
+                pipeline[limit_index]["$limit"] = min(10, original_limit)
+            else:
+                pipeline.append({"$limit": 10})
+
+            # "strength": 1 ensures only base characters are compared, ignoring case and diacritics
+            results = list(
+                collection.aggregate(
+                    pipeline, collation={"locale": "en", "strength": 1}
+                )
+            )
 
             # Convert BSON types to JSON-serializable
             results = serialize_bson(results)
@@ -232,7 +255,22 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 ]
 
             collection = db[collection_name]
-            results = list(collection.find(filter_query).limit(limit))
+
+            # Filter to sgexams subreddit
+            filter_query["subreddit"] = "sgexams"
+
+            # Cap limit to 10
+            limit = min(10, limit)
+
+            projection = None
+            if collection_name == "thread":
+                projection = {"selftext_embedding": 0, "_id": 0}
+
+            results = list(
+                collection.find(filter_query, projection)
+                .limit(limit)
+                .collation({"locale": "en", "strength": 1})
+            )
 
             # Convert BSON types to JSON-serializable
             results = serialize_bson(results)
@@ -262,17 +300,21 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     )
                 ]
 
-            # Get a sample document to show the schema
+            # Get a sample document to show the schema (scoped to sgexams)
             collection = db[collection_name]
-            sample = collection.find_one()
+            sample = collection.find_one({"subreddit": "sgexams"})
 
             if sample:
                 sample = serialize_bson(sample)
+                # Exclude embedding field from schema sample
+                sample.pop("selftext_embedding", None)
                 schema_info = {
                     "collection": collection_name,
                     "sample_fields": list(sample.keys()),
                     "sample_document": sample,
-                    "document_count": collection.count_documents({}),
+                    "document_count": collection.count_documents(
+                        {"subreddit": "sgexams"}
+                    ),
                 }
             else:
                 schema_info = {
